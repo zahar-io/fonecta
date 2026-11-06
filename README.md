@@ -16,7 +16,7 @@ python $FONECTA_KIT/mock_api/server.py &                          # Yext mock on
 .venv/bin/python brain/model.py                                   # trains, writes predictions_2026.csv (+ explained CSV)
 BRAIN_PREDICTIONS=$PWD/outputs/predictions_2026_explained.csv \
   .venv/bin/python -m uvicorn app.main:app --port 8800            # ops console: http://localhost:8800
-.venv/bin/python -m unittest discover app/tests                   # 10 tests, no network
+.venv/bin/python -m unittest discover app/tests                   # 11 tests, no network
 ```
 
 Settings come only from env vars: `YEXT_BASE_URL` (`https://sbx-api.yextapis.com/v2` for the team sandbox), `YEXT_API_KEY`,
@@ -34,6 +34,16 @@ Settings come only from env vars: `YEXT_BASE_URL` (`https://sbx-api.yextapis.com
 **Reliability:** `Engine._write` refuses any write without an owner decision, a standing permission (confident public holidays only, then inform with a one-tap Undo) or an owner undo. A unit test covers this. Every suggestion, message and decision is logged with its reasons (audit trail).
 
 **Learning:** "open as usual" or "not this year" suppresses that day. Edits are remembered and their pattern is applied to similar suggestions. Unclear declines lower confidence, so next time Connect asks instead of suggesting. 2025 pilot decisions seed each owner's history.
+
+## Beyond the five steps (same loop, more cases)
+
+- **Escalation (hierarchy):** if there's no answer within `ESCALATE_HOURS` (24 h), the same suggestion goes to the next approver from `app/var/approvers.json`. Whoever taps first decides, and the audit trail records who.
+- **Urgent call:** if the date is within 48 h and the owner has been silent for 4 h, one voice call explains the suggestion and asks them to tap Approve. A call never decides by itself. `app/call.py` offers preview mode or Flovr's existing voice service (pre-existing, not part of this repo).
+- **Reviews (extensibility):** a bad review gets a reply drafted in the review's own language (fi/sv/nb/en). The owner posts, edits or skips (no login), and the reply goes to Yext's Reviews API. Good reviews feed a weekly summary of what people praised. `app/reviews.py`.
+- **Live events:** "stay open later?" questions from Helsinki LinkedEvents (live). See below.
+- **Listing preview:** after approving, the owner sees how their special hours will show, labelled as a preview.
+- **WhatsApp:** interactive buttons inside the 24 h window, a template mode for business-initiated messages, and a webhook. See [docs/WHATSAPP.md](docs/WHATSAPP.md).
+- **Demo recorder:** `demo/record.py` drives the real app with Playwright, so the demo video shows nothing that doesn't run.
 
 ## Suggestion quality (Fonecta's scorer)
 
@@ -70,7 +80,7 @@ See [docs/MESSAGES.md](docs/MESSAGES.md): verbatim output for fi/sv/nb/en, inclu
 
 ## Bonus: live source
 
-TODO (in progress): live events next to the business (stay open later?) and/or public holidays from Nager.Date.
+`data/local_events.json` was replaced with **Helsinki LinkedEvents (live)**. Coverage, quality and gaps (including no attendance data and Turku's API being down) are in [docs/LIVE_SOURCES.md](docs/LIVE_SOURCES.md).
 
 ## Third-party code, data and licences
 
@@ -81,5 +91,7 @@ TODO (in progress): live events next to the business (stay open later?) and/or p
 | FastAPI, Starlette, Uvicorn, Pydantic | MIT / BSD-3 |
 | pandas, NumPy, scikit-learn, PyArrow | BSD-3 / Apache-2.0 |
 | python-multipart, eval_type_backport | Apache-2.0 / MIT |
+| Playwright (demo recorder only), Pillow | Apache-2.0 / MIT-CMU |
+| Helsinki LinkedEvents data | CC BY 4.0 |
 
 No GPL/AGPL components. GenAI used: Claude (Anthropic) via Claude Code, for code and copy, with every result checked by running it.

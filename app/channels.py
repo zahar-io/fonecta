@@ -82,11 +82,22 @@ class WhatsAppCloudChannel(Channel):
                                 "action": {"buttons": [{"type": "reply", "reply": {"id": bid, "title": title[:20]}}
                                                        for bid, title in list(zip(button_ids, msg["buttons"]))[:3]]}}}
 
+    @staticmethod
+    def template_payload(to: str, msg: dict, button_ids: list) -> dict:
+        """Business-initiated (outside the 24 h window) needs a Meta-approved template; see docs/WHATSAPP.md.
+        Template body: {{1}} = the suggestion text, quick-reply buttons carry our ids as payloads."""
+        name, lang = os.environ["WA_TEMPLATE"], os.environ.get("WA_TEMPLATE_LANG", "fi")
+        return {"messaging_product": "whatsapp", "to": to, "type": "template",
+                "template": {"name": name, "language": {"code": lang},
+                             "components": [{"type": "body", "parameters": [{"type": "text", "text": msg["body"][:900]}]}]
+                             + [{"type": "button", "sub_type": "quick_reply", "index": str(i),
+                                 "parameters": [{"type": "payload", "payload": bid}]} for i, bid in enumerate(button_ids[:3])]}}
+
     def send_suggestion(self, to, msg, button_ids):
         if not wa_configured():
             return {"ok": False, "channel": "whatsapp", "error": "WhatsApp not configured"}
-        r = self._transport(f"{GRAPH}/{self.phone_id}/messages",
-                            self.interactive_payload(self.recipient(to), msg, button_ids))
+        build = self.template_payload if os.environ.get("WA_TEMPLATE") else self.interactive_payload
+        r = self._transport(f"{GRAPH}/{self.phone_id}/messages", build(self.recipient(to), msg, button_ids))
         return {"ok": "error" not in r, "channel": "whatsapp", "delivered": "error" not in r,
                 "provider_id": ((r.get("messages") or [{}])[0]).get("id"), "error": r.get("error")}
 

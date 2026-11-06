@@ -200,7 +200,7 @@ class Builder:
                 cands["reg_open_peer_close"] = f"{o}-{b['median_close_special']}"
         off = self.offset.get(eid)
         f["off_share"] = off[2] if off else 0.0
-        if off and sp and os.environ.get("OWN_OFFSET", "1") == "1":
+        if off and sp and os.environ.get("OWN_OFFSET", "0") == "1":
             o, c = sp[0] + off[0], sp[1] + off[1]
             if 0 <= o < c <= 1439 + 1440:
                 fmt = lambda m: f"{(m // 60) % 24:02d}:{m % 60:02d}"  # noqa: E731

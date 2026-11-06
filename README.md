@@ -40,7 +40,7 @@ Settings come only from env vars: `YEXT_BASE_URL` (`https://sbx-api.yextapis.com
 | | Score | Exact precision | Recall | Harmful |
 |---|---|---|---|---|
 | Baseline (kit) | 54.5 | 0.90 | 0.59 | 224 |
-| Ours, 5-fold by business on dev 2026 (out-of-fold) | 61.9 | 0.83 | 0.70 | 381 |
+| Ours, 5-fold by business on dev 2026 (out-of-fold) | 61.8 | 0.84 | 0.70 | 396 |
 
 `predictions_2026.csv` in the repo root covers every target row. The dev number above is out-of-fold: it's scored only on businesses the model didn't train on.
 
@@ -57,7 +57,7 @@ Settings come only from env vars: `YEXT_BASE_URL` (`https://sbx-api.yextapis.com
 ## What we tried that didn't work
 
 - An "owner's habitual offset" candidate (e.g. always closes 1 h early): −1 point, too noisy as a standalone candidate. It's kept inside the learning loop for edits instead.
-- Training on the 2025 back-test as well: no gain over 2026 dev alone (61.9 vs 61.9).
+- Training on the 2025 back-test as well: no gain over 2026 dev alone.
 - Yext Suggestions and Analytics APIs on the sandbox: 403 for our app, so we kept the analytics from the dataset. The apply layer can switch to native Yext suggestions (`APPLY_MODE`).
 
 ## Customer with no history

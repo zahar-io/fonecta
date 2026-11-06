@@ -97,7 +97,7 @@ def decide(p, m, cs, thr):
 
 
 def main():
-    thr = {"closed": float(os.environ.get("THR_CLOSED", 0.3)), "open": float(os.environ.get("THR_OPEN", 0.2))}
+    thr = {"closed": float(os.environ.get("THR_CLOSED", 0.2)), "open": float(os.environ.get("THR_OPEN", 0.3))}
     b, X, meta = build(2026)
     L = labels(2026)
     dev = [i for i, m in enumerate(meta) if (m["entity_id"], m["date"]) in L]

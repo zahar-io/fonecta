@@ -154,7 +154,7 @@ def console():
             acts += f"<a class='btn s' target=_blank href='/s/{E(c['token'])}'>4 · Owner's page</a>"
         learned = "".join(f"<li>{E(x)}</li>" for x in e.learning.summary(c["entity_id"]))
         rows.append(
-            f"<div class=card><div style='display:flex;gap:18px;flex-wrap:wrap'><div style='flex:1;min-width:600px'>"
+            f"<div class=card id='case-{E(c['entity_id'])}'><div style='display:flex;gap:18px;flex-wrap:wrap'><div style='flex:1;min-width:600px'>"
             f"<h3 style='margin:0'>{E(c['name'])} <span class=muted>{E(c['entity_id'])} · {E(c['city'])} · "
             f"{E(str(c.get('segment')))}</span> <span class='tag t-{E(c['status'].split()[0])}'>{E(c['status'])}</span></h3>"
             f"<div class=muted>Owner {E(c['first'] or '-')} · prefers {E(c['channel_pref'])} in {E(c['lang'])} · "

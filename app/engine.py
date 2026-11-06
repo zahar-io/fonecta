@@ -79,6 +79,8 @@ class Engine:
                 ev = kitdata.local_events().get(it["event_id"])
                 if ev:
                     evs[it["event_id"]] = (ev.get("name") or {}).get(c["lang"]) or (ev.get("name") or {}).get("en")
+                elif it.get("event_name"):
+                    evs[it["event_id"]] = it["event_name"]
         return {"lang": c["lang"], "first": c["first"] or c["name"], "name": c["name"],
                 "views": c.get("views30"), "events": evs}
 
@@ -116,10 +118,63 @@ class Engine:
             if s["action"] != "NO_ACTION":
                 s["at_risk"] = kitdata.at_risk_views(eid, country, s["day_key"], date.fromisoformat(s["date"]))
             out.append(s)
+        out.extend(self.event_suggestions(eid, {s["date"] for s in out if s["action"] != "NO_ACTION"}))
+        return out
+
+    # ---------------------------------------------------------------- live data: events nearby
+    EVENT_TXT = {"fi": "{name} ({venue}, {dist} m päässä) päättyy noin klo {end}.",
+                 "sv": "{name} ({venue}, {dist} m bort) slutar runt {end}.",
+                 "nb": "{name} ({venue}, {dist} m unna) slutter rundt {end}.",
+                 "en": "{name} ({venue}, {dist} m away) ends around {end}."}
+    LATE_SEGMENTS = ("bar_pub", "restaurant", "pizzeria")
+
+    def event_suggestions(self, eid: str, taken: set) -> list:
+        if os.environ.get("LIVE_EVENTS", "1") != "1":
+            return []
+        from . import events
+        ent = kitdata.entities().get(eid) or {}
+        if ent.get("c_segment") not in self.LATE_SEGMENTS:
+            return []
+        geo = ent.get("geocodedCoordinate") or {}
+        if not geo:
+            return []
+        lang = messages.lang_of(self.contact(eid)["preferred_language"])
+        out = []
+        days = int(os.environ.get("EVENT_DAYS", "3"))
+        for k in range(1, days + 1):
+            d = config.SNAPSHOT + timedelta(days=k)
+            if d.isoformat() in taken:
+                continue
+            try:
+                evs = (events.helsinki(geo["latitude"], geo["longitude"], d)
+                       if ent["address"]["city"] == "Helsinki" else [])
+            except Exception:
+                evs = []
+            evs += events.curated(geo["latitude"], geo["longitude"], d)
+            day = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"][d.weekday()]
+            h = (ent.get("hours") or {}).get(day) or {}
+            if h.get("isClosed") or not h.get("openIntervals"):
+                continue
+            o, c = h["openIntervals"][0]["start"], h["openIntervals"][-1]["end"]
+            late = events.late_suggestion(c, evs, d)
+            if not late:
+                continue
+            ev = late["event"]
+            end = ev["end"][11:16] if ev["end"][:10] == d.isoformat() else ev.get("evening_end", "")
+            txt = {lg: t.format(name=ev["name"], venue=ev["venue"], dist=ev["distance_m"], end=end)
+                   for lg, t in self.EVENT_TXT.items()}
+            out.append({"entity_id": eid, "date": d.isoformat(), "day_key": "EVENT", "day_type": "EVENT",
+                        "event_id": "live:" + str(ev["id"]), "event_name": ev["name"], "name_en": ev["name"],
+                        "public_holiday": False, "weekday": d.weekday(), "shown_hours": f"{o}-{c}",
+                        "action": "SUGGEST", "hours": f"{o}-{late['new_close']}", "confidence": 0.5,
+                        "mode": "ask", "basis": "LIVE_EVENT", "shown_is_exception": False,
+                        "reasons": [txt[lang], f"Source: {ev['source']}." + (f" {ev['url']}" if ev.get("url") else ""),
+                                    txt["en"] if lang != "en" else "Open later = more customers; the owner decides."],
+                        "evidence": {"event": ev}, "at_risk": {"views": 0}})
         return out
 
     def run_detection(self, ids=None) -> list:
-        ids = ids or config.DEMO_IDS
+        ids = ids or (config.DEMO_IDS + [x for x in os.environ.get("DEMO_EXTRA", "FI-00125").split(",") if x])
         made = []
         for eid in ids:
             if eid not in kitdata.entities():

@@ -556,6 +556,37 @@ class Engine:
             self.save()
             return {"case": cid, "escalated": True, "to": who.get("name")}
 
+    # ---------------------------------------------------------------- urgent: call the owner
+    def urgent_call(self, cid: str, force: bool = False) -> dict:
+        from . import call
+        with LOCK:
+            c = self.case(cid)
+            if c["status"] != "sent":
+                raise NotAllowed(f"case is {c['status']}: nothing to call about")
+            open_items = sorted([i for i in c["items"] if i["status"] == "sent"], key=lambda i: i["date"])
+            first = open_items[0]
+            due_h = (datetime.fromisoformat(first["date"]) - datetime.combine(config.SNAPSHOT, datetime.min.time())
+                     ).total_seconds() / 3600
+            within = float(os.environ.get("URGENT_WITHIN_H", "48"))
+            if not force and due_h > within:
+                return {"case": cid, "called": False, "why": f"not urgent: first date is {due_h:.0f} h away"}
+            if c.get("called"):
+                return {"case": cid, "called": False, "why": "already called once: we never call twice"}
+            lang = c["lang"]
+            d = date.fromisoformat(first["date"])
+            what = messages.bullet(first, lang, first.get("event_name")).lstrip("• ")
+            text = call.script(lang, first=c["first"] or c["name"], name=c["name"],
+                               when=f"{messages.WD_LONG[lang][d.weekday()]} {messages.dm(d, lang)}", what=what)
+            res = call.place(text, f"Connect Suggests demo: urgent hours suggestion for {c['name']} ({first['date']}). "
+                                   f"Explain it in {lang} and ask the owner to tap Approve in the message.")
+            c["called"] = now_iso()
+            c["outbox"].append({"at": now_iso(), "kind": "urgent call", "channel": res.get("transport"), "text": text,
+                                "result": res})
+            self.learning.record({"entity_id": c["entity_id"], "case_id": cid, "type": "urgent call",
+                                  "transport": res.get("transport"), "dialled": res.get("dialled")})
+            self.save()
+            return {"case": cid, "called": True, **res}
+
     # ---------------------------------------------------------------- reset
     def reset(self, keep_learning: bool = False) -> dict:
         with LOCK:

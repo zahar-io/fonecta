@@ -147,6 +147,9 @@ def console():
         if c["status"] == "sent" and e.approvers(c["entity_id"]):
             acts += (f"<form method=post action=/api/escalate/{E(c['id'])} style='display:inline'>"
                      f"<button class='btn g'>No answer? Escalate (demo: skip the {os.environ.get('ESCALATE_HOURS', '24')} h wait)</button></form>")
+        if c["status"] == "sent" and not c.get("called"):
+            acts += (f"<form method=post action=/api/call/{E(c['id'])} style='display:inline'>"
+                     f"<button class='btn g'>Urgent: call the owner</button></form>")
         if c.get("token"):
             acts += f"<a class='btn s' target=_blank href='/s/{E(c['token'])}'>4 · Owner's page</a>"
         learned = "".join(f"<li>{E(x)}</li>" for x in e.learning.summary(c["entity_id"]))
@@ -192,6 +195,15 @@ def api_send(cid: str, via: str | None = None):
 def api_escalate(cid: str):
     try:
         eng().escalate(cid, force=True)
+    except NotAllowed as ex:
+        raise HTTPException(409, str(ex))
+    return RedirectResponse("/", 303)
+
+
+@app.post("/api/call/{cid}")
+def api_call(cid: str):
+    try:
+        eng().urgent_call(cid, force=True)
     except NotAllowed as ex:
         raise HTTPException(409, str(ex))
     return RedirectResponse("/", 303)

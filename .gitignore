@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+app/var/
+app/.secret
+outputs/
+*.pkl

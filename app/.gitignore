@@ -1,0 +1,4 @@
+.secret
+var/
+__pycache__/
+*.pyc

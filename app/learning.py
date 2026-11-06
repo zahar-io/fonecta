@@ -147,6 +147,7 @@ class Learning:
                 p["suppress"].pop(k, None)
             elif decision == "decline":
                 if reason in ("open_as_usual", "not_this_year"):
+                    p["lower"].pop(k, None)  # a clear reason replaces the earlier "no reason" penalty
                     p["suppress"][k] = {"reason": reason, "season": season(item["date"]), "at": now_iso(),
                                         "date": item["date"], "suggested": item.get("hours")}
                 else:

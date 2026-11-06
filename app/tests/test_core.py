@@ -118,3 +118,14 @@ class NoWriteWithoutApproval(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Reviews(unittest.TestCase):
+    def test_bad_review_gets_reply_in_its_language(self):
+        from app import reviews as rv
+        r = {"rating": 1, "content": "Det sto åpent på nett, men det var stengt.", "publisherId": "G"}
+        self.assertTrue(rv.is_bad(r))
+        d = rv.draft_reply(r, "Bakeri Fjord", "fi")
+        self.assertEqual(d["lang"], "nb")
+        self.assertIn("closed", d["topics"])
+        self.assertIn("Bakeri Fjord", d["reply"])

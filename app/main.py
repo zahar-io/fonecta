@@ -113,6 +113,19 @@ def phone_mock(c: dict) -> str:
     return f"<div class=phone><div class=mock>{label}</div>{''.join(bubbles)}</div>"
 
 
+def review_block(e, eid: str) -> str:
+    rc = (e.state.get("reviews") or {}).get(eid)
+    btn = (f"<form method=post action=/api/reviews/{E(eid)} style='display:inline'>"
+           f"<button class='btn g'>Reviews: check new + weekly summary</button></form>")
+    if not rc:
+        return f"<div id=rev-{E(eid)} style='margin-top:6px'>{btn}</div>"
+    msg = rc.get("message", "")
+    lk = f" <a class='btn s' target=_blank href='/r/{E(rc['link'])}'>Owner's review page</a>" if rc.get("link") else ""
+    return (f"<div id=rev-{E(eid)} class=card style='background:#faf9fd'>{btn}{lk} <span class='tag'>{E(rc.get('status', ''))}</span>"
+            f"<pre style='margin-top:6px'>{E(msg)}</pre><div class=muted>{E(rc.get('weekly', ''))}</div>"
+            f"{'<div class=muted>' + E(rc.get('result', '')) + '</div>' if rc.get('result') else ''}</div>")
+
+
 @app.get("/", response_class=HTMLResponse)
 def console():
     e = eng()
@@ -147,6 +160,7 @@ def console():
             f"<table><tr><th>Date</th><th>Google shows</th><th>Suggest</th><th>Conf.</th><th>Basis</th><th>Why</th>"
             f"<th>Views at risk</th><th>Status</th></tr>{items}</table><div style='margin-top:8px'>{acts}</div>"
             f"<details><summary class=muted>What Connect has learned about this owner</summary><ul>{learned}</ul></details>"
+            + review_block(e, c["entity_id"]) +
             f"<details><summary class=muted>Audit trail</summary><pre class=muted>"
             f"{E(json.dumps(e.learning.audit(c['entity_id'])[-8:], ensure_ascii=False, indent=1))}</pre></details>"
             f"</div>{phone_mock(c)}</div></div>")
@@ -316,6 +330,83 @@ def owner_undo(link: str):
         raise HTTPException(403, "Not an undo link.")
     out = eng().undo(c["id"])
     return page("Undone", f"<div class=card><pre>{E(out.get('confirmation', 'Nothing to undo.'))}</pre></div>", True)
+
+
+# ------------------------------------------------------------------ reviews: same loop, second use case
+def _reviews_for(eid):
+    import json as _j
+    if not hasattr(_reviews_for, "all"):
+        with open(os.path.join(config.KIT_DATA, "reviews.json"), encoding="utf-8") as f:
+            _reviews_for.all = _j.load(f)["response"]["reviews"]
+    return sorted([r for r in _reviews_for.all if r["locationId"] == eid], key=lambda r: -r["publisherDate"])
+
+
+@app.post("/api/reviews/{eid}")
+def api_reviews(eid: str):
+    """Newest unanswered bad review -> draft reply -> owner message; plus the weekly summary of good ones."""
+    from datetime import datetime as _dt
+    from . import reviews as rv
+    e = eng()
+    con = e.contact(eid)
+    lang = messages.lang_of(con["preferred_language"])
+    name = (__import__("app.kitdata", fromlist=["entities"]).entities().get(eid) or {}).get("name", eid)
+    snap = _dt.combine(config.SNAPSHOT, _dt.min.time())
+    rs = [r for r in _reviews_for(eid) if r["publisherDate"] < snap.timestamp() * 1000]  # only what Connect knew
+    bad = next((r for r in rs if rv.is_bad(r) and (r.get("content") or "").strip() and not r.get("comments")), None)
+    out = {"entity_id": eid, "name": name, "lang": lang, "created_at": e.learning and __import__("app.learning", fromlist=["now_iso"]).now_iso()}
+    if bad:
+        d = rv.draft_reply(bad, name, lang)
+        link = links.sign({"r": eid, "id": bad["id"]})
+        out.update(review=bad, draft=d, link=link, status="sent",
+                   message=rv.owner_message(bad, d, lang) + f"\n{config.public_base()}/r/{link}")
+    if rs:
+        out["weekly"] = rv.weekly_summary(rs, lang, snap)
+    e.state.setdefault("reviews", {})[eid] = out
+    e.save()
+    return RedirectResponse("/#rev-" + eid, 303)
+
+
+def _review_case(link):
+    try:
+        body = links.verify(link)
+        return body, eng().state["reviews"][body["r"]]
+    except Exception:
+        raise HTTPException(403, "This link has expired or isn't valid.")
+
+
+@app.get("/r/{link}", response_class=HTMLResponse)
+def review_page(link: str):
+    _, rc = _review_case(link)
+    r = rc["review"]
+    if rc["status"] != "sent":
+        return page("Done", f"<div class=card>{E(rc.get('result', rc['status']))}</div>", True)
+    return page(rc["name"], f"<div class=card><b>{'★' * int(r.get('rating') or 0)}</b> "
+                f"<span class=muted>{E(r.get('authorName', ''))} · {E(r.get('publisherId', ''))}</span>"
+                f"<p>{E(r.get('content', ''))}</p></div><form method=post action='/r/{E(link)}'><div class=card>"
+                f"<textarea name=reply rows=6 style='width:100%;font:inherit'>{E(rc['draft']['reply'])}</textarea></div>"
+                f"<button class='btn p' name=a value=post>Post / Julkaise</button>"
+                f"<button class='btn g' name=a value=skip>Skip / Ohita</button></form>", True)
+
+
+@app.post("/r/{link}", response_class=HTMLResponse)
+def review_decide(link: str, a: str = Form(...), reply: str = Form("")):
+    body, rc = _review_case(link)
+    e = eng()
+    if rc["status"] != "sent":
+        raise HTTPException(409, "Already handled.")
+    if a == "post" and reply.strip():
+        try:  # Yext Reviews API: POST /reviews/{id}/comments (the kit mock doesn't implement it)
+            e.yext._req("POST", f"reviews/{body['id']}/comments", body={"content": reply.strip(), "visibility": "PUBLIC"})
+            rc["result"] = "Reply posted via the Yext Reviews API."
+        except Exception as ex:
+            rc["result"] = f"Reply approved and stored; the Yext mock has no review-comment endpoint ({str(ex)[:60]})."
+        rc["status"], rc["final_reply"] = ("edited" if reply.strip() != rc["draft"]["reply"] else "approved"), reply.strip()
+    else:
+        rc["status"], rc["result"] = "skipped", "Skipped. Nothing was posted."
+    e.learning.record({"entity_id": rc["entity_id"], "type": "review reply", "review_id": body["id"],
+                       "decision": rc["status"], "draft": rc["draft"]["reply"], "final": rc.get("final_reply")})
+    e.save()
+    return page("Done", f"<div class=card>{E(rc['result'])}</div>", True)
 
 
 # ------------------------------------------------------------------ WhatsApp webhook

@@ -55,6 +55,35 @@ def page(title: str, body: str, owner: bool = False) -> HTMLResponse:
                         f"<style>{CSS}</style></head><body>{head}<main>{body}</main></body></html>")
 
 
+# ------------------------------------------------------------------ "how it will look" card (preview, not a screenshot)
+PREVIEW = {"fi": ("Esikatselu: näin ilmoituksenne näkyy hauissa", "Kiinni", "Auki", "Erikoisaukioloajat"),
+           "sv": ("Förhandsvisning: så här visas er profil i sökningar", "Stängt", "Öppet", "Avvikande öppettider"),
+           "nb": ("Forhåndsvisning: slik vises oppføringen i søk", "Stengt", "Åpent", "Spesielle åpningstider"),
+           "en": ("Preview: how your listing will show in search", "Closed", "Open", "Special hours")}
+
+
+def maps_card(c: dict, applied: list) -> str:
+    from datetime import date as _d
+    lang = c["lang"] if c["lang"] in PREVIEW else "en"
+    title, closed_w, open_w, special = PREVIEW[lang]
+    ent = __import__("app.kitdata", fromlist=["entities"]).entities().get(c["entity_id"]) or {}
+    addr = ", ".join(x for x in ((ent.get("address") or {}).get("line1"), c.get("city")) if x)
+    rows = ""
+    for a in sorted(applied, key=lambda a: a["date"])[:5]:
+        d = _d.fromisoformat(a["date"])
+        h = a.get("final_hours") or a.get("hours")
+        st = (f"<b style='color:#d93025'>{closed_w}</b>" if h == "closed"
+              else f"<b style='color:#188038'>{open_w}</b> {E(nice(h))}")
+        rows += (f"<div style='display:flex;justify-content:space-between;padding:3px 0'>"
+                 f"<span>{E(messages.day_name(a, lang, a.get('event_name')))} {E(messages.dm(d, lang))}</span>"
+                 f"<span>{st}</span></div>")
+    return (f"<div class=card style='max-width:380px;border:1px solid #dadce0;box-shadow:none'>"
+            f"<div class=muted style='margin-bottom:6px'>{E(title)}</div>"
+            f"<div style='font-size:20px'>{E(c['name'])}</div>"
+            f"<div class=muted>{E(str(c.get('segment') or '').replace('_', ' ').title())} · {E(addr)}</div>"
+            f"<div style='margin-top:8px;font-size:13px'><div class=muted>{E(special)}</div>{rows}</div></div>")
+
+
 # ------------------------------------------------------------------ console
 def item_row(it: dict, lang="en") -> str:
     rs = "".join(f"<li>{E(r)}</li>" for r in it.get("reasons") or [])
@@ -265,7 +294,11 @@ async def owner_decide(link: str, request: Request):
         chips = f"<div class=card><b>{E(WHY[lang])}</b><br>" + "".join(
             f"<form method=post action='/s/{E(link)}/reason' style='display:inline'><input type=hidden name=r value={k}>"
             f"<button class='btn s'>{E(v)}</button></form>" for k, v in CHIPS[lang].items()) + "</div>"
-    return page("Thanks", f"<div class=card><pre>{E(out.get('confirmation', ''))}</pre></div>{chips}", True)
+    card = ""
+    if out.get("applied"):
+        it = {i["date"]: i for i in c["items"]}
+        card = maps_card(c, [dict(it.get(a["date"], {}), **a) for a in out["applied"]])
+    return page("Thanks", f"<div class=card><pre>{E(out.get('confirmation', ''))}</pre></div>{card}{chips}", True)
 
 
 @app.post("/s/{link}/reason", response_class=HTMLResponse)

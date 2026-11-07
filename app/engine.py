@@ -138,7 +138,7 @@ class Engine:
         geo = ent.get("geocodedCoordinate") or {}
         if not geo:
             return []
-        lang = messages.lang_of(self.contact(eid)["preferred_language"])
+        lang = messages.lang_of(os.environ.get("DEMO_LANG") or self.contact(eid)["preferred_language"])
         out = []
         days = int(os.environ.get("EVENT_DAYS", "3"))
         for k in range(1, days + 1):
@@ -206,7 +206,8 @@ class Engine:
         v = kitdata.views_last_30_days(eid)
         c = {"id": cid, "entity_id": eid, "name": ent["name"], "city": ent["address"]["city"],
              "segment": ent.get("c_segment"), "country": ent["meta"]["countryCode"],
-             "first": con["contact_first_name"], "lang": messages.lang_of(con["preferred_language"]),
+             "first": con["contact_first_name"],
+             "lang": messages.lang_of(os.environ.get("DEMO_LANG") or con["preferred_language"]),
              "channel_pref": con["preferred_channel"], "window": con["best_contact_window"],
              "to_phone": con.get("mobile"), "to_email": con.get("email"),
              "opted_out": con["opted_out_of_suggestions"], "created_at": now_iso(), "items": items,

@@ -534,7 +534,7 @@ def _review_edit_text(frm, text) -> bool:
 def api_review_new(eid: str, rating: int = 1, text: str = ""):
     """Demo: a new review arrives right now (as the monitor would see it from the Yext Reviews API)."""
     import time as _t
-    r = {"id": f"live-{int(_t.time())}", "locationId": eid, "rating": rating, "authorName": "Mikko K.",
+    r = {"id": f"live-{int(_t.time())}", "locationId": eid, "rating": rating, "authorName": "Laura S.",
          "publisherId": "GOOGLEMYBUSINESS", "publisherDate": _t.time() * 1000,
          "content": text or "Came on Saturday at 17:00. Google said open, but the door was locked. Wasted trip with the kids."}
     _review_incoming(eid, r)

@@ -776,6 +776,10 @@ def _settings_button(frm, bid):
     c = e.case(req["cid"])
     if bid == "ss":
         S.apply(e.state, c["entity_id"], req["ch"])
+        if req["ch"].get("auto_add"):  # newly pre-approved days that are already waiting get handled now
+            with __import__("app.engine", fromlist=["LOCK"]).LOCK:
+                e._auto_apply(c, include_sent=True)
+                e._refresh(c)
         m = "Saved ✅\n\n" + S.render(S.get(e.state, c["entity_id"]), _monitored(c), _backup_label(c["entity_id"]))
     else:
         m = "OK, nothing changed."

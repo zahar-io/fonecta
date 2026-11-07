@@ -222,7 +222,7 @@ class Engine:
             for i in items:
                 if i["status"] == "pending":
                     i["status"] = "opted out"
-        elif self.learning.has_permission(eid):
+        elif self.learning.has_permission(eid) or (self.state.get("settings") or {}).get(eid, {}).get("auto"):
             self._auto_apply(c)
         self._refresh(c)
         return cid
@@ -269,10 +269,14 @@ class Engine:
             return []
 
     # ---------------------------------------------------------------- standing permission
-    def _auto_apply(self, c: dict):
+    def _auto_apply(self, c: dict, include_sent: bool = False):
         eid = c["entity_id"]
-        todo = [i for i in c["items"] if i["status"] == "pending" and i["action"] == "SUGGEST"
-                and i.get("public_holiday") and i["confidence"] >= AUTO_MIN_CONF and i["mode"] == "suggest"]
+        from . import settings as S
+        perm = self.learning.has_permission(eid)
+        todo = [i for i in c["items"] if i["status"] in (("pending", "sent") if include_sent else ("pending",))
+                and i["action"] == "SUGGEST"
+                and ((perm and i.get("public_holiday")) or S.auto_covers(self.state, eid, i))
+                and i["confidence"] >= AUTO_MIN_CONF and i["mode"] == "suggest"]
         if not todo:
             return
         changes = {i["date"]: i["hours"] for i in todo}

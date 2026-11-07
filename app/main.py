@@ -475,7 +475,7 @@ def _review_incoming(eid: str, r: dict):
                 f"*{REV_UI['sugg']}*\n{d['reply']}")
         payload = {"messaging_product": "whatsapp", "to": _wa().recipient(c.get("to_phone")), "type": "interactive",
                    "interactive": {"type": "button", "header": {"type": "text", "text": REV_UI["head"]},
-                                   "body": {"text": text[:1024]}, "footer": {"text": f"{name} · Connect"},
+                                   "body": {"text": text[:1024]},
                                    "action": {"buttons": [{"type": "reply", "reply": {"id": f"{k}:{tok}", "title": t}}
                                                           for k, t in zip(("rp", "rx", "rk"), REV_UI["btn"])]}}}
         res = _wa()._transport(f"{channels.GRAPH}/{_wa().phone_id}/messages", payload)

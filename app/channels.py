@@ -83,7 +83,7 @@ class WhatsAppCloudChannel(Channel):
         if wa and len(wa["body"]) <= 1024:  # WhatsApp-native formatting with a header and footer
             return {"messaging_product": "whatsapp", "recipient_type": "individual", "to": to, "type": "interactive",
                     "interactive": {"type": "button", "header": {"type": "text", "text": wa["header"][:60]},
-                                    "body": {"text": wa["body"]}, "footer": {"text": wa["footer"][:60]},
+                                    "body": {"text": wa["body"]},
                                     "action": {"buttons": [{"type": "reply", "reply": {"id": bid, "title": title[:20]}}
                                                            for bid, title in list(zip(button_ids, msg["buttons"]))[:3]]}}}
         body = msg["body"] + "\n\n" + msg["link_line"]
@@ -91,7 +91,6 @@ class WhatsAppCloudChannel(Channel):
             body = msg["body"][: 1024 - len(msg["link_line"]) - 4].rstrip() + "…\n\n" + msg["link_line"]
         return {"messaging_product": "whatsapp", "recipient_type": "individual", "to": to, "type": "interactive",
                 "interactive": {"type": "button", "body": {"text": body},
-                                "footer": {"text": "Fonecta Connect"},
                                 "action": {"buttons": [{"type": "reply", "reply": {"id": bid, "title": title[:20]}}
                                                        for bid, title in list(zip(button_ids, msg["buttons"]))[:3]]}}}
 

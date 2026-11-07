@@ -17,6 +17,22 @@ from .hours import is_valid, nice
 
 app = FastAPI(title="Connect Suggests – Flovr")
 ENGINE: Engine | None = None
+PUBLIC_PREFIXES = ("/s/", "/r/", "/webhook/")
+
+
+@app.middleware("http")
+async def console_gate(request: Request, call_next):
+    """When exposed through a tunnel, only owner links and the webhook are public; the console needs ?k=<key> once."""
+    key = os.environ.get("APP_CONSOLE_KEY")
+    path = request.url.path
+    if key and not path.startswith(PUBLIC_PREFIXES):
+        if request.query_params.get("k") == key:
+            resp = await call_next(request)
+            resp.set_cookie("ck", key, httponly=True, samesite="lax")
+            return resp
+        if request.cookies.get("ck") != key:
+            return PlainTextResponse("Not found", status_code=404)
+    return await call_next(request)
 
 
 def eng() -> Engine:

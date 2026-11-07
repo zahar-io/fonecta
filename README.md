@@ -7,6 +7,10 @@ owner in their own channel and language, and after one tap (no login) writes the
 Built during the event by Flovr (Alex, Vova and Zahar, Flovr's AI agent). All data is the synthetic Fonecta/Since AI
 dataset. No real customer data.
 
+**For judges:** demo video (2 min): *YouTube link added at submission* · pitch deck: [docs/Flovr_Fonecta_ConnectSuggests_deck.pdf](docs/Flovr_Fonecta_ConnectSuggests_deck.pdf) ·
+`predictions_2026.csv` in the repo root (dev score 61.84 on Fonecta's scorer, baseline 54.5) · final messages: [docs/MESSAGES.md](docs/MESSAGES.md) ·
+live source write-up: [docs/LIVE_SOURCES.md](docs/LIVE_SOURCES.md).
+
 ![How it works: Fonecta data, events and reviews go into one brain, the owner decides on WhatsApp or a call, Yext publishes](docs/img/architecture.png)
 
 ## Run it
@@ -50,20 +54,6 @@ Settings come only from env vars: `YEXT_BASE_URL` (`https://sbx-api.yextapis.com
 
 **Learning:** "open as usual" or "not this year" suppresses that day. Edits are remembered and their pattern is applied to similar suggestions. Unclear declines lower confidence, so next time Connect asks instead of suggesting. 2025 pilot decisions seed each owner's history.
 
-## Beyond the five steps (same loop, more cases)
-
-- **Channel-agnostic:** the decision engine talks to a `Channel` interface (`app/channels.py`). Live: WhatsApp (buttons, chat, voice notes) and WhatsApp voice calls. **Built and switched off** (`app/channels_extra.py`): SMS through any Twilio-style gateway, with "reply 1 = yes, 2 = no, or write the hours" for owners without smartphones (`SMS_ENABLED=1`), and iMessage through Apple Messages for Business (`IMESSAGE_ENABLED=1`, needs Apple's business registration). Detection, decisions and learning don't change per channel.
-- **Decision log:** every suggestion, answer, edit, call and change also lands in one SQLite table (`app/var/decisions.db`). `/log` shows it per business (who, what, when, which channel) and `/api/decisions` serves it as JSON. That's the one connection Connect's own UI would need to show the owner's WhatsApp decisions next to everything else.
-- **Best time to message:** after 3+ replies, Connect learns the 2-hour window when this owner actually answers and sends new messages then (the CRM contact window is only the starting point). Shown in "what Connect learned".
-- **Staff shifts:** the evening before, Connect checks tomorrow's schedule from a shift platform and tells the owner if nobody has claimed the opening shift: close the morning on Google, or "I'll sort it". The schedule here is synthetic, in the shape Planday/Quinyx expose (`app/shifts.py`, `app/data/shifts_demo.json`).
-- **Watched pages:** the owner writes "watch https://… for events near my café"; every 6 h Connect re-reads the page, a light model lists the dated events (page text is treated as data, output validated), and each new event reaches the owner once (`app/watch.py`).
-
-- **Escalation (hierarchy):** no answer within the owner's "call after" setting (30 min by default) → Connect calls the owner; still nothing → a second call to the owner; still nothing → the same suggestion is texted to the backup approver from `app/var/approvers.json`, and the backup gets one call. Whoever taps first decides, and the audit trail records who. The console's manual escalation (`ESCALATE_HOURS`, 24 h) is still there.
-- **Urgent call:** a real **WhatsApp voice call** (Cloud API Calling, WebRTC via aiortc) that speaks the suggestion, after the owner granted call permission; a spoken voice note is the fallback.
-- **Reviews (extensibility):** a bad review gets a reply drafted in the review's own language (fi/sv/nb/en). The owner posts, edits or skips (no login), and the reply goes to Yext's Reviews API. Every review feeds a weekly summary: count, average, good / mixed / bad split, what people praised and what they complained about. `app/reviews.py`.
-- **Live events** (Helsinki LinkedEvents, live): "stay open later?" for bars, restaurants and pizzerias when an evening event nearby ends after closing; "open earlier?" for cafés and bakeries when a morning event starts before opening; and a "busy day" WhatsApp heads-up (staff, stock) when 3+ events are on within 1 km (`POST /api/busy-day/{eid}`). All are questions: the owner decides. See below.
-- **WhatsApp:** one message per decision (back-to-back days or one event share a message) with a header card; **Edit happens in the chat**: the owner types "8-14" / "10am-4pm" / "closed", Connect confirms, and nothing is saved before the Save tap. Interactive buttons inside the 24 h window, a template mode for business-initiated messages, and a webhook. See [docs/WHATSAPP.md](docs/WHATSAPP.md).
-
 ## Suggestion quality (Fonecta's scorer)
 
 | | Score | Exact precision | Recall | Harmful |
@@ -89,13 +79,37 @@ Settings come only from env vars: `YEXT_BASE_URL` (`https://sbx-api.yextapis.com
 - Training on the 2025 back-test as well: no gain over 2026 dev alone.
 - Yext Suggestions and Analytics APIs: 403 on our sandbox; Fonecta confirmed (Discord, 7 Nov) both are out of scope for the challenge. Approvals live in our own flow with an audit trail, analytics come from the dataset.
 
-## Customer with no history
+## Customer with no history / no previous actions
 
-`FI-D0017` Kahvila Kipinä (joined 12 Oct 2026, no exceptions, no decisions): suggestions come from peers. Confident ones (Christmas Day closed, 0.89) are suggested. Weak ones (Father's Day, 0.29) are asked as a question ("Are you open on…?"), never assumed. Nothing is ever written without the owner.
+`FI-D0017` Kahvila Kipinä (joined 12 Oct 2026, no exceptions, no past decisions). Every suggestion comes from similar
+businesses (segment, country, city size) and from last year's activity data, never from the owner's own history.
+Current output: Christmas Eve, Christmas Day, Boxing Day and New Year's Day, each "closed", confidence 0.78–0.99, one
+WhatsApp message per date with the reason ("86% of similar businesses nearby are closed that day"). Anything under 0.6
+confidence is sent as a question ("Are you open on…?") instead of a suggestion, and nothing is written without the owner's tap.
+See section 4 of [docs/MESSAGES.md](docs/MESSAGES.md) for the exact messages.
 
-## Final customer messages
+## Final customer messages (as text)
 
-See [docs/MESSAGES.md](docs/MESSAGES.md): verbatim output for fi/sv/nb/en, including approve, edit and decline follow-ups, the standing-permission "inform + undo" message, and the silent cases.
+Verbatim output for fi/sv/nb/en, the SMS/email version, and the approve, edit, decline, standing-permission and undo
+follow-ups: [docs/MESSAGES.md](docs/MESSAGES.md) (regenerated from the current code). The English WhatsApp message:
+
+```
+[Holiday hours check]
+Hi Aleksi 👋
+
+📅 *Independence Day · Sun 6 Dec*
+🔴 Google shows: ~10–16~
+🟢 We suggest: *closed*
+
+💡 *Why:* Businesses like yours are usually closed that day, but Google now shows your regular hours (10–16).
+
+Tap a button below 👇
+
+[ ✅ Approve ]  [ ✏️ Edit ]  [ ❌ No thanks ]
+```
+After Approve: "✅ Done! Your new hours are saved: • Independence Day, Sun 6 Dec: closed · 📍 Live on: Google ~2 min,
+Finder.fi ~10 min, Fonecta Caller ~1 h, Bing ~1 day, Apple Maps ~2 days." After No thanks: "👍 OK, we won't change anything.
+Google keeps showing your current hours. Thanks for letting us know, we'll remember it next time!"
 
 ## Bonus: live source
 
@@ -113,8 +127,24 @@ See [docs/MESSAGES.md](docs/MESSAGES.md): verbatim output for fi/sv/nb/en, inclu
 | Pillow | MIT-CMU |
 | aiortc, PyAV (WhatsApp voice call) | BSD-3-Clause; PyAV wheels bundle FFmpeg under LGPL (not GPL) |
 | Helsinki LinkedEvents data | CC BY 4.0 |
+| External services (used through their APIs, under their terms): Yext Management + Reviews API, Meta WhatsApp Cloud API, Anthropic Claude (Haiku), Google Gemini (fallback) | – |
+| Local tools, not bundled, run as separate programs: ffmpeg (voice notes, calls; use an LGPL build), whisper.cpp (voice-note transcription) | LGPL / MIT |
 
 No GPL/AGPL components.
+
+## Beyond the five steps (same loop, more cases)
+
+- **Channel-agnostic:** the decision engine talks to a `Channel` interface (`app/channels.py`). Live: WhatsApp (buttons, chat, voice notes) and WhatsApp voice calls. **Built and switched off** (`app/channels_extra.py`): SMS through any Twilio-style gateway, with "reply 1 = yes, 2 = no, or write the hours" for owners without smartphones (`SMS_ENABLED=1`), and iMessage through Apple Messages for Business (`IMESSAGE_ENABLED=1`, needs Apple's business registration). Detection, decisions and learning don't change per channel.
+- **Decision log:** every suggestion, answer, edit, call and change also lands in one SQLite table (`app/var/decisions.db`). `/log` shows it per business (who, what, when, which channel) and `/api/decisions` serves it as JSON. That's the one connection Connect's own UI would need to show the owner's WhatsApp decisions next to everything else.
+- **Best time to message:** after 3+ replies, Connect learns the 2-hour window when this owner actually answers and sends new messages then (the CRM contact window is only the starting point). Shown in "what Connect learned".
+- **Staff shifts:** the evening before, Connect checks tomorrow's schedule from a shift platform and tells the owner if nobody has claimed the opening shift: close the morning on Google, or "I'll sort it". The schedule here is synthetic, in the shape Planday/Quinyx expose (`app/shifts.py`, `app/data/shifts_demo.json`).
+- **Watched pages:** the owner writes "watch https://… for events near my café"; every 6 h Connect re-reads the page, a light model lists the dated events (page text is treated as data, output validated), and each new event reaches the owner once (`app/watch.py`).
+
+- **Escalation (hierarchy):** no answer within the owner's "call after" setting (30 min by default) → Connect calls the owner; still nothing → a second call to the owner; still nothing → the same suggestion is texted to the backup approver from `app/var/approvers.json`, and the backup gets one call. Whoever taps first decides, and the audit trail records who. The console's manual escalation (`ESCALATE_HOURS`, 24 h) is still there.
+- **Urgent call:** a real **WhatsApp voice call** (Cloud API Calling, WebRTC via aiortc) that speaks the suggestion, after the owner granted call permission; a spoken voice note is the fallback.
+- **Reviews (extensibility):** a bad review gets a reply drafted in the review's own language (fi/sv/nb/en). The owner posts, edits or skips (no login), and the reply goes to Yext's Reviews API. Every review feeds a weekly summary: count, average, good / mixed / bad split, what people praised and what they complained about. `app/reviews.py`.
+- **Live events** (Helsinki LinkedEvents, live): "stay open later?" for bars, restaurants and pizzerias when an evening event nearby ends after closing; "open earlier?" for cafés and bakeries when a morning event starts before opening; and a "busy day" WhatsApp heads-up (staff, stock) when 3+ events are on within 1 km (`POST /api/busy-day/{eid}`). All are questions: the owner decides. See below.
+- **WhatsApp:** one message per decision (back-to-back days or one event share a message) with a header card; **Edit happens in the chat**: the owner types "8-14" / "10am-4pm" / "closed", Connect confirms, and nothing is saved before the Save tap. Interactive buttons inside the 24 h window, a template mode for business-initiated messages, and a webhook. See [docs/WHATSAPP.md](docs/WHATSAPP.md).
 
 ## Generative AI: where and why
 

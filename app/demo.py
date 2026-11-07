@@ -74,7 +74,10 @@ def demo(eid: str = "FI-D0001"):
             f"<div class=why>Why</div></div>{''.join(_row(i) for i in sugg)}</div></div>")
     if not sent:
         left += (f"<form method=post action='/demo/send?eid={E(eid)}'><button class=btn>3 · Send to {E(c['first'] or 'owner')} "
-                 f"({E(c['channel_pref'].title())}, {E(c['lang'])})</button></form>")
+                 f"({E(c['channel_pref'].title())}, {E(c['lang'])})</button></form>"
+                 + (f"<form method=post action='/demo/send?eid={E(eid)}&via=whatsapp' style='margin-top:12px'>"
+                    f"<button class=btn style='background:#128c7e'>3 · Send via WhatsApp (real phone)</button></form>"
+                    if __import__("app.channels", fromlist=["wa_configured"]).wa_configured() else ""))
         right = "<div class=card><div class=k>Owner's phone</div><p class=sub>Nothing sent yet.</p></div>"
     else:
         right = f"<div class=k style='margin-bottom:8px'>4 · Owner's phone (live, no login)</div><iframe id=ph src='/s/{E(c['token'])}'></iframe>"

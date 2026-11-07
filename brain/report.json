@@ -1,73 +1,20 @@
 {
- "model": "v2 (T403): state classifier + candidate expected-points regressor",
+ "model": "v2.1 (T403): calibrated 3-model ensemble (g1cal, g1calc, v3cal)",
  "thr": {
-  "closed": 0.3,
-  "open": 0.1
+  "closed": 0.1,
+  "open": 0.0
  },
- "configs": [
-  [
-   {
-    "max_iter": 300,
-    "learning_rate": 0.06,
-    "max_leaf_nodes": 31
-   },
-   {
-    "max_iter": 300,
-    "learning_rate": 0.06,
-    "max_leaf_nodes": 31
-   }
-  ],
-  [
-   {
-    "max_iter": 300,
-    "learning_rate": 0.06,
-    "max_leaf_nodes": 31
-   },
-   {
-    "max_iter": 800,
-    "learning_rate": 0.03,
-    "max_leaf_nodes": 63,
-    "min_samples_leaf": 30
-   }
-  ],
-  [
-   {
-    "max_iter": 800,
-    "learning_rate": 0.03,
-    "max_leaf_nodes": 31,
-    "l2_regularization": 1.0
-   },
-   {
-    "max_iter": 300,
-    "learning_rate": 0.06,
-    "max_leaf_nodes": 31
-   }
-  ],
-  [
-   {
-    "max_iter": 300,
-    "learning_rate": 0.06,
-    "max_leaf_nodes": 31
-   },
-   {
-    "max_iter": 300,
-    "learning_rate": 0.06,
-    "max_leaf_nodes": 31
-   },
-   true
-  ]
- ],
  "counts": {
-  "NO_ACTION:None": 24137,
-  "SUGGEST:STATE_MODEL": 11967,
-  "SUGGEST:LY2": 987,
-  "SUGGEST:PATTERN": 523,
-  "SUGGEST:PEER_SPECIAL": 566,
-  "SUGGEST:LY1": 3065,
-  "SUGGEST:REV_CLOSE": 90,
-  "SUGGEST:PS1": 23,
+  "NO_ACTION:None": 24707,
+  "SUGGEST:STATE_MODEL": 11571,
+  "SUGGEST:LY2": 980,
+  "SUGGEST:PATTERN": 548,
+  "SUGGEST:PEER_SPECIAL": 387,
+  "SUGGEST:LY1": 3075,
+  "SUGGEST:REV_CLOSE": 76,
+  "SUGGEST:PS1": 17,
   "SUGGEST:PS2": 26,
-  "SUGGEST:MALL": 210,
+  "SUGGEST:MALL": 207,
   "FLAG:CLOSED_SIGNALS": 161
  }
 }

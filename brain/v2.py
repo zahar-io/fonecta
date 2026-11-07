@@ -107,6 +107,8 @@ def oof(D,extra=None):
         Xte=D['X'].iloc[[dev[j] for j in te]].copy()
         for c in M.CAT: Xte[c]=pd.Categorical(Xte[c].astype(str),categories=Xtr[c].cat.categories)
         sm=HC(**SP).fit(Xtr,ytr); P[te]=sm.predict_proba(Xte)
+        if os.environ.get('CAL')=='1':
+            P[te]=calibrate(Xtr,ytr,g_tr_all(D,tr,extra,trE),P[te])
         cte=np.isin(crow_j,te)
         Za,Zb=align(Ztr,D['Z'][cte])
         for c in M.CAT:
@@ -115,6 +117,20 @@ def oof(D,extra=None):
     byrow=collections.defaultdict(list)
     for (i,h),e in zip(D['keys'],EC): byrow[i].append((e,h))
     return P,byrow
+def g_tr_all(D,tr,extra,trE):
+    g=[D['meta'][D['dev'][j]]['entity_id'] for j in tr]
+    if extra is not None:
+        g+= [extra['meta'][i]['entity_id'] for i in extra['dev'] if extra['meta'][i]['entity_id'] in trE]
+    return np.array(g)
+def calfeat(P): return np.log(np.clip(P,1e-4,1))
+def calibrate(Xtr,ytr,gtr,Pte):
+    """Inner 3-fold by business on the training fold only -> multinomial logistic calibration of the probabilities."""
+    from sklearn.linear_model import LogisticRegression
+    inner=np.zeros((len(ytr),3))
+    for a,b in GroupKFold(3).split(Xtr,ytr,gtr):
+        m=HC(**SP).fit(Xtr.iloc[a],ytr[a]); inner[b]=m.predict_proba(Xtr.iloc[b])
+    lr=LogisticRegression(C=1.0,max_iter=1000).fit(calfeat(inner),ytr)
+    return lr.predict_proba(calfeat(Pte))
 def decide2(p,m,cands,thr):
     if m['flag']: return "FLAG","",0.9,"CLOSED_SIGNALS",9
     shown=m['shown']; best=("NO_ACTION","",float(p[1]),None,-9)

@@ -64,8 +64,10 @@ Settings come only from env vars: `YEXT_BASE_URL` (`https://sbx-api.yextapis.com
 | Baseline (kit), 2025 back-test | 53.2 | 0.90 | 0.58 | 249 |
 | v1 brain, dev 2026 out-of-fold | 61.8 | 0.84 | 0.70 | 396 |
 | v1 brain, 2025 back-test out-of-fold | 59.3 | 0.83 | 0.68 | 478 |
-| **v2 brain, dev 2026 out-of-fold** | **64.3** | 0.84 | 0.72 | 355 |
-| **v2 brain, 2025 back-test out-of-fold** | **62.3** | 0.84 | 0.69 | 361 |
+| v2 brain, dev 2026 out-of-fold | 64.3 | 0.84 | 0.72 | 355 |
+| v2 brain, 2025 back-test out-of-fold | 62.3 | 0.84 | 0.69 | 361 |
+| **v2.1 brain (calibrated), dev 2026 out-of-fold** | **64.6** | 0.84 | 0.72 | 351 |
+| **v2.1 brain (calibrated), 2025 back-test out-of-fold** | **62.9** | 0.84 | 0.71 | 402 |
 
 Protocol: 5-fold GroupKFold by business. Every scored row comes from a business the model didn't train on, in either
 season. The two decision thresholds for one season are picked on the other season's out-of-fold sweep, never on
@@ -83,12 +85,31 @@ scored with the kit's `evaluation/evaluate.py`.
   and as an hours candidate;
 - an average of 4 model configs, one of them also trained on the 2025 season.
 
+**v2.1 (T403 round 2)** adds:
+- **Calibration.** The open/closed model was overconfident: at a stated 0.85 it was right about 0.63 of the time. An
+  inner 3-fold by business, run inside each training fold, fits a logistic calibration layer. After it, the best
+  thresholds sit near the theoretical 0 (closed 0.1, open 0), so the expected-points decision means what it says.
+- **Poisson evidence from analytics** (`brain/an_llr.py`). On a day the shop was closed while Google said open,
+  customer actions fall to about 0.6x the usual weekday and phone calls don't fall. The old feature mixed the two. A
+  log-likelihood ratio over every past occurrence of the same day: AUC 0.755 vs 0.63 for closed against open, on
+  rows with no owner entry last year.
+- **Fold-safe label statistics** (`brain/te.py`, `brain/v3.py`). Built from training-fold businesses only (their labels
+  and their 2024-25 truth history): how this segment, in this country, on this day really changes its hours, used
+  as state features, as hours candidates and as candidate features. Training rows get the statistics from inner
+  folds, because leave-one-out leaked the label (first try: 60.9).
+- The ensemble is 3 calibrated models (g1cal, g1calc, v3cal): `brain/final2.py`.
+
+Tried and not kept: a low-confidence FLAG (+0.06, not worth confusing "flag" in the app); adding the 2025 season as
+training rows (worse in both seasons); bigger or slower trees without calibration.
+
 Where the rest of the gap is: with perfect open/closed knowledge, the same pipeline would score 90.6 on dev. With
 perfect hours-candidate choice it would score 69.5. So the open/closed state is the limit. About two thirds of the
 rows have no owner entry from last season, and the honest signals there (peers, activity, reviews) are weak.
 
 Reproduce: `brain/cache.py`, `brain/cache2.py`, then `REPREP=1 TAG=… brain/v2.py` for each config, then
 `brain/ens.py f3,f3c,f3s,f3x`, then `brain/final.py` (`THR_CLOSED=0.3 THR_OPEN=0.1`, `CONFIGS` in `brain/report.json`).
+v2.1: also `brain/cache3.py`, then `REPREP=1 CAL=1 TAG=g1cal brain/v2.py`, `CAL=1 TAG=g1calc CPX=… brain/v2.py` and
+`CAL=1 TAG=v3cal brain/v3.py`, then `brain/ens.py g1cal,g1calc,v3cal`, then `THR_CLOSED=0.1 THR_OPEN=0 brain/final2.py`.
 
 `predictions_2026.csv` in the repo root covers every target row. The dev number above is out-of-fold: it's scored only on businesses the model didn't train on.
 

@@ -126,17 +126,35 @@ class Engine:
                  "sv": "{name} ({venue}, {dist} m bort) slutar runt {end}.",
                  "nb": "{name} ({venue}, {dist} m unna) slutter rundt {end}.",
                  "en": "{name} ({venue}, {dist} m away) ends around {end}."}
+    EARLY_TXT = {"fi": "{name} ({venue}, {dist} m päässä) alkaa klo {start}.",
+                 "sv": "{name} ({venue}, {dist} m bort) börjar {start}.",
+                 "nb": "{name} ({venue}, {dist} m unna) starter {start}.",
+                 "en": "{name} ({venue}, {dist} m away) starts at {start}."}
     LATE_SEGMENTS = ("bar_pub", "restaurant", "pizzeria")
+    EARLY_SEGMENTS = ("cafe", "bakery")
+
+    def _events_near(self, ent: dict, d: date, hours: tuple) -> list:
+        from . import events
+        geo = ent.get("geocodedCoordinate") or {}
+        if not geo:
+            return []
+        try:
+            evs = (events.helsinki(geo["latitude"], geo["longitude"], d, hours=hours)
+                   if ent["address"]["city"] == "Helsinki" else [])
+        except Exception:
+            evs = []
+        cur = events.curated(geo["latitude"], geo["longitude"], d)
+        return evs + [e for e in cur if datetime.fromisoformat(e["start"]).date() < d
+                      or hours[0] <= datetime.fromisoformat(e["start"]).hour < hours[1]]
 
     def event_suggestions(self, eid: str, taken: set) -> list:
+        """'Stay open later?' (bars, restaurants) and 'open earlier?' (cafés, bakeries) from events nearby."""
         if os.environ.get("LIVE_EVENTS", "1") != "1":
             return []
         from . import events
         ent = kitdata.entities().get(eid) or {}
-        if ent.get("c_segment") not in self.LATE_SEGMENTS:
-            return []
-        geo = ent.get("geocodedCoordinate") or {}
-        if not geo:
+        seg = ent.get("c_segment")
+        if seg not in self.LATE_SEGMENTS + self.EARLY_SEGMENTS or not ent.get("geocodedCoordinate"):
             return []
         lang = messages.lang_of(os.environ.get("DEMO_LANG") or self.contact(eid)["preferred_language"])
         out = []
@@ -145,32 +163,50 @@ class Engine:
             d = config.SNAPSHOT + timedelta(days=k)
             if d.isoformat() in taken:
                 continue
-            try:
-                evs = (events.helsinki(geo["latitude"], geo["longitude"], d)
-                       if ent["address"]["city"] == "Helsinki" else [])
-            except Exception:
-                evs = []
-            evs += events.curated(geo["latitude"], geo["longitude"], d)
             day = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"][d.weekday()]
             h = (ent.get("hours") or {}).get(day) or {}
             if h.get("isClosed") or not h.get("openIntervals"):
                 continue
             o, c = h["openIntervals"][0]["start"], h["openIntervals"][-1]["end"]
-            late = events.late_suggestion(c, evs, d)
-            if not late:
-                continue
-            ev = late["event"]
-            end = ev["end"][11:16] if ev["end"][:10] == d.isoformat() else ev.get("evening_end", "")
-            txt = {lg: t.format(name=ev["name"], venue=ev["venue"], dist=ev["distance_m"], end=end)
-                   for lg, t in self.EVENT_TXT.items()}
+            if seg in self.LATE_SEGMENTS:
+                hit = events.late_suggestion(c, self._events_near(ent, d, (15, 24)), d)
+                if not hit:
+                    continue
+                ev = hit["event"]
+                end = ev["end"][11:16] if ev["end"][:10] == d.isoformat() else ev.get("evening_end", "")
+                txt = {lg: t.format(name=ev["name"], venue=ev["venue"], dist=ev["distance_m"], end=end)
+                       for lg, t in self.EVENT_TXT.items()}
+                hours, why_en = f"{o}-{hit['new_close']}", "Open later = more customers; the owner decides."
+            else:
+                hit = events.early_suggestion(o, self._events_near(ent, d, (6, 12)), d)
+                if not hit:
+                    continue
+                ev = hit["event"]
+                txt = {lg: t.format(name=ev["name"], venue=ev["venue"], dist=ev["distance_m"], start=ev["start"][11:16])
+                       for lg, t in self.EARLY_TXT.items()}
+                hours, why_en = f"{hit['new_open']}-{c}", "Open earlier = catch the morning crowd; the owner decides."
             out.append({"entity_id": eid, "date": d.isoformat(), "day_key": "EVENT", "day_type": "EVENT",
                         "event_id": "live:" + str(ev["id"]), "event_name": ev["name"], "name_en": ev["name"],
                         "public_holiday": False, "weekday": d.weekday(), "shown_hours": f"{o}-{c}",
-                        "action": "SUGGEST", "hours": f"{o}-{late['new_close']}", "confidence": 0.5,
+                        "action": "SUGGEST", "hours": hours, "confidence": 0.5,
                         "mode": "ask", "basis": "LIVE_EVENT", "shown_is_exception": False,
                         "reasons": [txt[lang], f"Source: {ev['source']}." + (f" {ev['url']}" if ev.get("url") else ""),
-                                    txt["en"] if lang != "en" else "Open later = more customers; the owner decides."],
+                                    txt["en"] if lang != "en" else why_en],
                         "evidence": {"event": ev}, "at_risk": {"views": 0}})
+        return out
+
+    def busy_days(self, eid: str, days: int | None = None) -> list:
+        """Days with a lot on nearby (any segment): a heads-up for staff and stock, not an hours change."""
+        from . import events
+        ent = kitdata.entities().get(eid) or {}
+        if not ent.get("geocodedCoordinate"):
+            return []
+        out = []
+        for k in range(1, (days or int(os.environ.get("EVENT_DAYS", "3"))) + 1):
+            d = config.SNAPSHOT + timedelta(days=k)
+            b = events.busy_day(self._events_near(ent, d, (6, 24)))
+            if b:
+                out.append(dict(b, date=d.isoformat()))
         return out
 
     def run_detection(self, ids=None) -> list:

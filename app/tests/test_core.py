@@ -244,3 +244,28 @@ class UndoAndCalls(unittest.TestCase):
             os.environ.update({k: v for k, v in old.items() if v})
         self.assertEqual(r["transport"], "wa-call")
         self.assertFalse(r["dialled"])
+
+
+class Events(unittest.TestCase):
+    def test_open_earlier_for_morning_event(self):
+        from datetime import date as D
+        from app import events
+        ev = [{"id": 1, "name": "Market", "venue": "Square", "start": "2026-11-14T08:00", "end": "2026-11-14T14:00",
+               "distance_m": 300}]
+        self.assertEqual(events.early_suggestion("09:00", ev, D(2026, 11, 14))["new_open"], "07:30")
+        self.assertIsNone(events.early_suggestion("07:00", ev, D(2026, 11, 14)))   # already open
+        self.assertIsNone(events.early_suggestion("11:00", ev, D(2026, 11, 14)))   # 3.5 h earlier: too big
+
+    def test_busy_day(self):
+        from app import events
+        two = [{"name": f"e{i}", "start": "2026-11-14T19:00", "distance_m": 100} for i in range(2)]
+        self.assertIsNone(events.busy_day(two))
+        self.assertEqual(events.busy_day(two + two)["count"], 4)
+        self.assertIsNotNone(events.busy_day([{"name": "Fair", "expected_attendance": 500, "distance_m": 900}]))
+
+    def test_busy_text_four_languages(self):
+        b = {"date": "2026-11-14", "count": 4, "top": [{"name": "Jazz", "start": "2026-11-14T19:00"}]}
+        for lang in ("fi", "sv", "nb", "en"):
+            text, btns = messages.busy_text(lang, "Mikko", "Kahvila Aurora", b)
+            self.assertIn("Jazz (19:00)", text)
+            self.assertEqual(len(btns), 2)

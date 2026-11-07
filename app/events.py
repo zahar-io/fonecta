@@ -1,4 +1,7 @@
-"""Live data bonus: events next to a business -> "stay open later?" suggestions.
+"""Live data bonus: events next to a business ->
+* "stay open later?" for bars, restaurants and pizzerias when an evening event ends after they close;
+* "open earlier?" for cafés and bakeries when a morning event (market, run, fair) starts before they open;
+* a "busy day" heads-up (staff, stock) when a lot is on nearby, for any business with a chat channel.
 
 Sources
 * Helsinki LinkedEvents (api.hel.fi/linkedevents/v1, CC BY 4.0): live, Helsinki region only.
@@ -42,7 +45,7 @@ def _helsinki_day(day: date, timeout: int = 20) -> list:
     """All Helsinki-region events starting that day (one paged fetch per day, cached)."""
     if day in _DAY_CACHE:
         return _DAY_CACHE[day]
-    q = {"start": f"{day.isoformat()}T12:00", "end": f"{(day + timedelta(days=1)).isoformat()}T00:00",
+    q = {"start": f"{day.isoformat()}T04:00", "end": f"{(day + timedelta(days=1)).isoformat()}T00:00",
          "max_duration": f"{MAX_DURATION_H}h", "bbox": "24.80,60.12,25.20,60.30",
          "include": "location", "page_size": 100, "sort": "start_time"}
     url = "https://api.hel.fi/linkedevents/v1/event/?" + urllib.parse.urlencode(q)
@@ -58,7 +61,9 @@ def _helsinki_day(day: date, timeout: int = 20) -> list:
     return rows
 
 
-def helsinki(lat: float, lon: float, day: date, radius_m: int = RADIUS_M, timeout: int = 20) -> list:
+def helsinki(lat: float, lon: float, day: date, radius_m: int = RADIUS_M, timeout: int = 20,
+             hours: tuple = (15, 24)) -> list:
+    """Events within radius_m that start that day between hours[0] and hours[1] (local time)."""
     out = []
     for e in _helsinki_day(day, timeout):
         try:
@@ -67,7 +72,7 @@ def helsinki(lat: float, lon: float, day: date, radius_m: int = RADIUS_M, timeou
             continue
         if en <= st:  # end time missing or equal to start: assume a typical 2.5 h show
             en = st + timedelta(hours=2, minutes=30)
-        if st.date() != day or (en - st) > timedelta(hours=MAX_DURATION_H) or st.hour < 15:
+        if st.date() != day or (en - st) > timedelta(hours=MAX_DURATION_H) or not hours[0] <= st.hour < hours[1]:
             continue
         loc = e.get("location") or {}
         pos = (loc.get("position") or {}).get("coordinates")
@@ -116,3 +121,36 @@ def late_suggestion(close: str, events: list, day: date) -> dict | None:
     if datetime.fromisoformat(ev["start"]) < close_dt - timedelta(hours=1) and end.date() == day:
         return None  # the crowd is out before closing time anyway
     return {"event": ev, "new_close": target.strftime("%H:%M")}
+
+
+def early_suggestion(open_: str, events: list, day: date) -> dict | None:
+    """If a morning event starts before the business opens, propose opening 30 min before it (at most 2 h earlier)."""
+    if not events or not open_:
+        return None
+    morning = [e for e in events if datetime.fromisoformat(e["start"]).date() == day
+               and 6 <= datetime.fromisoformat(e["start"]).hour < 12]
+    if not morning:
+        return None
+    ev = min(morning, key=lambda e: (e["start"], -(e.get("expected_attendance") or 0)))
+    start = datetime.fromisoformat(ev["start"])
+    target = start - timedelta(minutes=30)
+    target = target.replace(minute=0 if target.minute < 30 else 30)
+    open_dt = datetime.combine(day, datetime.strptime(open_, "%H:%M").time())
+    if target >= open_dt or open_dt - target > timedelta(hours=2) or target.hour < 6:
+        return None  # nothing to gain, or too big a change to propose
+    return {"event": ev, "new_open": target.strftime("%H:%M")}
+
+
+BUSY_COUNT = 3          # this many events nearby in one day ...
+BUSY_ATTENDANCE = 300   # ... or one event at least this big (when the source says how big)
+
+
+def busy_day(events: list) -> dict | None:
+    """A lot on nearby: not an hours change, a heads-up so the owner can plan staff and stock."""
+    if not events:
+        return None
+    big = [e for e in events if (e.get("expected_attendance") or 0) >= BUSY_ATTENDANCE]
+    if len(events) < BUSY_COUNT and not big:
+        return None
+    top = sorted(events, key=lambda e: (-(e.get("expected_attendance") or 0), e.get("distance_m", 0)))[:3]
+    return {"count": len(events), "top": top, "attendance": sum(e.get("expected_attendance") or 0 for e in events)}

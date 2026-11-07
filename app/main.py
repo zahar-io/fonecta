@@ -571,6 +571,8 @@ async def wa_hook(request: Request):
             _settings_button(frm, bid)
         elif bid in ("shc", "shk"):
             _shift_button(frm, bid)
+        elif bid in ("bds", "bdk"):
+            _busy_button(frm, bid)
     for frm, text in channels.parse_texts(payload):
         _edit_text(frm, text)
     for frm, media in channels.parse_audio(payload):
@@ -737,6 +739,48 @@ def _free_text(frm, text):
         m = chat_edit.CONFIRM_REQ[lang].format(days=_days_text(c, ds), h=hn, shown=shown)
         b = chat_edit.buttons(lang)
         _log(c, "request: confirm", m, _wa().send_buttons(frm, m, [("rs", b[0]), ("rc", "Cancel" if lang == "en" else b[1])]))
+    e.save()
+
+
+@app.post("/api/busy-day/{eid}")
+def api_busy_day(eid: str):
+    """Busy day nearby (events) -> WhatsApp heads-up with two buttons; recorded in the decision log."""
+    e = eng()
+    days = e.busy_days(eid)
+    if not days:
+        return JSONResponse({"busy": None})
+    b = days[0]
+    ent = __import__("app.kitdata", fromlist=["entities"]).entities().get(eid, {})
+    c = next(iter(reversed(e.cases_for(eid))), None)
+    lang = c["lang"] if c else messages.lang_of(os.environ.get("DEMO_LANG") or "en")
+    first = os.environ.get("DEMO_FIRST") or (c or {}).get("first") or "there"
+    text, (yes, no) = messages.busy_text(lang, first, ent.get("name", eid), b)
+    to = os.environ.get("WA_TO", "")
+    res = _wa().send_buttons(to, text, [("bds", yes), ("bdk", no)])
+    e.state.setdefault("wa_busy", {})[channels.WhatsAppCloudChannel().recipient(to) if to else ""] = \
+        {"eid": eid, "date": b["date"], "lang": lang}
+    e.learning.record({"entity_id": eid, "type": "busy day", "date": b["date"], "channel": "whatsapp",
+                       "events": [x["name"] for x in b["top"]], "count": b["count"]})
+    e.save()
+    return JSONResponse({"busy": b, "text": text, "result": res})
+
+
+BUSY_ACK = {"bds": {"en": "Great, noted. Good luck with the crowd!", "fi": "Selvä, merkitty. Onnea vilkkaaseen päivään!",
+                    "sv": "Bra, noterat. Lycka till med rusningen!", "nb": "Flott, notert. Lykke til med travelheten!"},
+            "bdk": {"en": "OK, nothing to change. I'll keep an eye out.", "fi": "Selvä, ei muutoksia. Pidän silmällä.",
+                    "sv": "OK, inget ändras. Jag håller utkik.", "nb": "OK, ingenting endres. Jeg følger med."}}
+
+
+def _busy_button(frm, bid):
+    e = eng()
+    st = e.state.setdefault("wa_busy", {})
+    req = st.pop(frm, None) or (st.pop(next(iter(st)), None) if len(st) == 1 else None)
+    if not req:
+        return
+    m = BUSY_ACK[bid].get(req["lang"], BUSY_ACK[bid]["en"])
+    e.learning.record({"entity_id": req["eid"], "type": "decision", "date": req["date"], "channel": "whatsapp",
+                       "decision": "busy day: owner adds staff/stock" if bid == "bds" else "busy day: no change"})
+    _wa().send_text(frm, m)
     e.save()
 
 

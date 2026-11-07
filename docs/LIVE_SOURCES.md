@@ -12,3 +12,9 @@ Code: `app/events.py`, `Engine.event_suggestions`. Curated fallback for cities w
 - **Gotcha:** a plain `start`/`end` query returns season-long exhibitions first (started in 2001…2019). You need `max_duration=8h` plus an afternoon `start` to get the evening programme.
 - **Signal value:** across 106 Helsinki restaurants, bars and pizzerias, only 5 got a suggestion for this weekend. All 5 are pizzerias near Temppeliaukio church, where a concert ends 20:15 and they close 20:00. It's a useful but rare signal. Without attendance data it should stay a question, never an automatic change.
 - **In production:** LinkedEvents (Helsinki, Espoo), Ticketmaster/Lippupiste/Tiketti venue feeds for attendance, the arenas' own calendars, plus each city's open data where it exists.
+
+
+## Added 8 Nov (T402)
+- **Open earlier?** Cafés and bakeries: a morning event (06–12) within 1 km that starts before opening -> suggest opening 30 min before it (at most 2 h earlier). Checked live: 8 of 40 Helsinki cafés/bakeries got one for 7–9 Nov (e.g. a toddler morning in a park at 10:00 -> open 9:30). Small events trigger it too, so it is always asked, never applied.
+- **Busy day.** 3+ events within 1 km in one day (or one curated event with 300+ expected) -> a WhatsApp heads-up about staff and stock, with two buttons. Not an hours change. Checked live: Kahvila Aurora, Sat 7 Nov, 4 events within 1 km.
+- Gap unchanged: LinkedEvents has no attendance numbers, so "busy" counts events, not people.

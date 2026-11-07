@@ -498,3 +498,26 @@ def auto_applied(ctx: dict, applied: list, listings: list, by_text: bool = False
 
 def undone(ctx: dict) -> str:
     return T[lang_of(ctx.get("lang"))]["undone"]
+
+
+# ------------------------------------------------------------------ busy day nearby (heads-up, not an hours change)
+BUSY = {
+    "fi": ("Hei {first}! {wd} {dm} lähellä {name}a on vilkasta: {n} tapahtumaa 1 km säteellä, mm. {top}. "
+           "Kannattaako lisätä henkilökuntaa tai tilata enemmän?", ("Lisään väkeä", "Ei tarvetta")),
+    "sv": ("Hej {first}! {wd} {dm} händer det mycket nära {name}: {n} evenemang inom 1 km, bl.a. {top}. "
+           "Behöver ni mer personal eller varor?", ("Jag ordnar", "Inte nödvändigt")),
+    "nb": ("Hei {first}! {wd} {dm} skjer det mye nær {name}: {n} arrangementer innen 1 km, blant annet {top}. "
+           "Trenger dere flere på jobb eller mer varer?", ("Jeg ordner det", "Ikke nødvendig")),
+    "en": ("Heads-up, {first}: {wd} {dm} is busy near {name}. {n} events within 1 km, including {top}. "
+           "Worth adding staff or ordering more stock?", ("I'll sort it", "Fine as is")),
+}
+
+
+def busy_text(lang: str, first: str, name: str, b: dict) -> tuple:
+    """-> (text, (yes_label, no_label))."""
+    lang = lang_of(lang)
+    d = date.fromisoformat(b["date"])
+    top = ", ".join(f"{e['name']} ({e.get('start', '')[11:16] or '–'})" for e in b["top"][:2])
+    text, btns = BUSY[lang]
+    return text.format(first=first, wd=WD_SHORT[lang][d.weekday()].capitalize(), dm=dm(d, lang), name=name,
+                       n=b["count"], top=top), btns

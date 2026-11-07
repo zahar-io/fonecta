@@ -206,7 +206,7 @@ class Engine:
         v = kitdata.views_last_30_days(eid)
         c = {"id": cid, "entity_id": eid, "name": ent["name"], "city": ent["address"]["city"],
              "segment": ent.get("c_segment"), "country": ent["meta"]["countryCode"],
-             "first": con["contact_first_name"],
+             "first": os.environ.get("DEMO_FIRST") or con["contact_first_name"],
              "lang": messages.lang_of(os.environ.get("DEMO_LANG") or con["preferred_language"]),
              "channel_pref": con["preferred_channel"], "window": con["best_contact_window"],
              "to_phone": con.get("mobile"), "to_email": con.get("email"),
@@ -342,20 +342,21 @@ class Engine:
             ch = self._chan(c, via)
             tok = c["token"]
             per_date = ch.real and os.environ.get("WA_PER_DATE", "1") == "1"
-            if per_date:  # each date is its own decision: one message per date, its own buttons and link
+            if per_date:  # each decision gets its own message; only back-to-back days (or one event) share one
                 res = None
-                for it in sorted([i for i in c["items"] if i["status"] == "pending" and i["action"] == "SUGGEST"],
-                                 key=lambda i: i["date"]):
-                    t1 = tokens.sign({"c": c["id"], "e": c["entity_id"], "d": it["date"]})
-                    m1 = messages.compose(self.ctx(c), [it], f"{config.public_base()}/s/{t1}")
+                for grp in self.groups([i for i in c["items"] if i["status"] == "pending" and i["action"] == "SUGGEST"]):
+                    ds = [i["date"] for i in grp]
+                    t1 = tokens.sign({"c": c["id"], "e": c["entity_id"], "ds": ds})
+                    m1 = messages.compose(self.ctx(c), grp, f"{config.public_base()}/s/{t1}")
                     try:
                         from .cards import hours_card
-                        m1["wa"]["image"] = hours_card(c["name"], dict(it, entity_id=c["entity_id"]), c["lang"])
+                        m1["wa"]["image"] = hours_card(c["name"], [dict(i, entity_id=c["entity_id"]) for i in grp], c["lang"])
                     except Exception:
                         pass
                     res = ch.send_suggestion(c.get("to_phone"), m1, [f"a:{t1}", f"e:{t1}", f"d:{t1}"])
-                    it["token"] = t1
-                    c["outbox"].append({"at": now_iso(), "kind": f"suggestion {it['date']}",
+                    for i in grp:
+                        i["token"] = t1
+                    c["outbox"].append({"at": now_iso(), "kind": "suggestion " + ", ".join(ds),
                                         "channel": self._chan_name(c, via), "text": m1["text"], "result": res})
             else:
                 res = ch.send_suggestion(c.get("to_phone"), msg, [f"a:{tok}", f"e:{tok}", f"d:{tok}"])
@@ -373,6 +374,21 @@ class Engine:
             self._refresh(c)
             self.save()
             return {"case": cid, "result": res, "message": msg}
+
+    @staticmethod
+    def groups(items: list) -> list:
+        """Back-to-back days (e.g. 24-26 Dec) or the same event go in one message (max 4); everything else alone."""
+        out = []
+        for it in sorted(items, key=lambda i: i["date"]):
+            if out:
+                last = out[-1][-1]
+                gap = (date.fromisoformat(it["date"]) - date.fromisoformat(last["date"])).days
+                same_event = it.get("event_id") and it.get("event_id") == last.get("event_id")
+                if (gap == 1 or same_event) and len(out[-1]) < 4:
+                    out[-1].append(it)
+                    continue
+            out.append([it])
+        return out
 
     # ---------------------------------------------------------------- 4 decide + 5 apply
     def decide(self, cid: str, decisions: dict, reason: str | None = None, permission: bool = False,

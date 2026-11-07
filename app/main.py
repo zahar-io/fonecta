@@ -289,7 +289,7 @@ def owner_page(link: str):
         return page("Undo", f"<div class=card><pre>{E((c.get('outbox') or [{}])[-1].get('text', ''))}</pre>"
                             f"<form method=post action='/s/{E(link)}/undo'><button class='btn g'>Undo this change</button></form></div>", True)
     open_items = [i for i in c["items"] if i["status"] in ("pending", "sent") and i["action"] == "SUGGEST"
-                  and (not body.get("d") or i["date"] == body["d"])]
+                  and (not (body.get("ds") or body.get("d")) or i["date"] in (body.get("ds") or [body.get("d")]))]
     if not open_items:
         last = (c.get("outbox") or [{}])[-1].get("text", "")
         return page("Done", f"<div class=card><h3>{E(c['name'])}</h3><pre>{E(last)}</pre></div>", True)
@@ -467,8 +467,9 @@ async def wa_hook(request: Request):
             continue
         if kind in ("a", "d"):
             act = "approve" if kind == "a" else "decline"
-            if body.get("d"):  # a per-date message: decide only that date
-                eng().decide(c["id"], {body["d"]: {"action": act}}, channel="whatsapp")
+            ds = body.get("ds") or ([body["d"]] if body.get("d") else None)
+            if ds:  # a per-decision message: decide only its dates
+                eng().decide(c["id"], {d: {"action": act} for d in ds}, channel="whatsapp")
             else:
                 eng().decide_all(c["id"], act, channel="whatsapp")
         elif kind == "e":

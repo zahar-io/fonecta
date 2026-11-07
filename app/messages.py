@@ -4,6 +4,7 @@ One message per business bundles its upcoming dates. Every date says what Google
 wrong. Low confidence -> phrased as a question. A value line uses the business's own analytics."""
 from __future__ import annotations
 
+import re
 from datetime import date
 
 from .hours import nice
@@ -73,7 +74,7 @@ T = {
         "b_now": "Google nyt: {s}", "b_ask": "oletteko auki? Arviomme: {sug}",
         "value": "Yrityksenne tiedot nähtiin Googlen haussa ja kartoilla {views} kertaa viimeisen 30 päivän "
                  "aikana. Oikeat aukioloajat pitävät teidät mukana ”auki nyt” -hauissa.",
-        "buttons": ("Hyväksy", "Muokkaa", "Ei kiitos"),
+        "buttons": ("✅ Hyväksy", "✏️ Muokkaa", "❌ Ei kiitos"),
         "link": "Hyväksy, muokkaa tai hylkää (ei kirjautumista): {url}",
         "sign": "– Fonecta Connect",
         "subject": "{name}: tarkistetaanko pyhien aukioloajat?",
@@ -118,7 +119,7 @@ T = {
         "b_now": "Google nu: {s}", "b_ask": "har ni öppet? Vårt förslag: {sug}",
         "value": "Er profil visades {views} gånger i Googles sök och kartor de senaste 30 dagarna. Rätt "
                  "öppettider håller er kvar i sökningar på ”öppet nu”.",
-        "buttons": ("Godkänn", "Ändra", "Nej tack"),
+        "buttons": ("✅ Godkänn", "✏️ Ändra", "❌ Nej tack"),
         "link": "Godkänn, ändra eller avböj (ingen inloggning): {url}",
         "sign": "– Fonecta Connect",
         "subject": "{name}: ska vi uppdatera helgtiderna?",
@@ -163,7 +164,7 @@ T = {
         "b_now": "Google nå: {s}", "b_ask": "har dere åpent? Vårt forslag: {sug}",
         "value": "Profilen deres ble vist {views} ganger i Googles søk og kart de siste 30 dagene. Riktige "
                  "åpningstider holder dere med i søk på «åpent nå».",
-        "buttons": ("Godkjenn", "Endre", "Nei takk"),
+        "buttons": ("✅ Godkjenn", "✏️ Endre", "❌ Nei takk"),
         "link": "Godkjenn, endre eller avslå (uten innlogging): {url}",
         "sign": "– Fonecta Connect",
         "subject": "{name}: skal vi oppdatere åpningstidene i høytiden?",
@@ -208,7 +209,7 @@ T = {
         "b_now": "Google now: {s}", "b_ask": "are you open? Our guess: {sug}",
         "value": "Your listing was seen {views} times on Google Search and Maps in the last 30 days. Correct "
                  "holiday hours keep you in “open now” results.",
-        "buttons": ("Approve", "Edit", "No thanks"),
+        "buttons": ("✅ Approve", "✏️ Edit", "❌ No thanks"),
         "link": "Approve, edit or decline (no login): {url}",
         "sign": "– Fonecta Connect",
         "subject": "{name}: shall we update your holiday hours?",
@@ -402,39 +403,55 @@ WA_HEAD = {"fi": "Pyhäpäivien aukioloajat", "sv": "Öppettider under helgerna"
            "en": "Holiday hours check"}
 
 
+WA_LBL = {"en": ("Google shows", "We suggest", "Why", "Tap a button below 👇"),
+          "fi": ("Google näyttää", "Ehdotamme", "Miksi", "Valitse alta 👇"),
+          "sv": ("Google visar", "Vi föreslår", "Varför", "Välj nedan 👇"),
+          "nb": ("Google viser", "Vi foreslår", "Hvorfor", "Velg nedenfor 👇")}
+
+
+def _why_short(it, lang):
+    """The reason without the repeated 'so Google now shows …' tail (that's already on its own line)."""
+    s = why_sentence(it, lang)
+    s = re.split(r",? (?:so|joten|så|og) Google", s)[0]
+    s = re.split(r",? (?:but|mutta|men) (?:no|tälle|inga|ingen)", s)[0]
+    return s.rstrip(" .") + "."
+
+
 def wa_format(ctx: dict, items: list, url: str) -> dict:
-    """WhatsApp-native version: a header, Google's wrong hours struck out next to ours in bold, the reason, and
-    buttons (added by the channel). One date per message is the default: each date is its own decision."""
+    """WhatsApp-native, easy to scan: emoji markers, one line per fact, the reason in its own line, buttons below."""
     lang = lang_of(ctx.get("lang"))
     t = T[lang]
+    lbl = WA_LBL[lang]
     ev_names = ctx.get("events") or {}
     items = sorted(items, key=lambda i: i["date"])
-    lines = [t["hi"].format(first=ctx["first"]), ""]
+    head = [t["hi"].format(first=ctx["first"]).rstrip("!") + " 👋", ""]
 
-    def block(it, short_why):
+    def title(it):
         d = date.fromisoformat(it["date"])
-        k = _basis_key(it)
-        why = ""
-        if short_why:
-            why = t["b_ask"].format(sug=hrs(it["hours"], lang)) if it.get("mode") == "ask" else (
-                t["b_" + k].format(**_fill(it, lang)) if k != "OTHER" else "")
-        return [f"*{day_name(it, lang, ev_names.get(it.get('event_id')))}, {WD_SHORT[lang][d.weekday()]} {dm(d, lang)}*",
-                f"~{hrs(it['shown_hours'], lang)}~ → *{hrs(it['hours'], lang)}*" + (f"  _{why}_" if why else "")]
+        return f"📅 *{day_name(it, lang, ev_names.get(it.get('event_id')))} · {WD_SHORT[lang][d.weekday()]} {dm(d, lang)}*"
 
     if len(items) == 1:
         it = items[0]
-        tail = ["", why_sentence(it, lang)]
+        why = _why_short(it, lang)
         if it.get("mode") == "ask":
             d = date.fromisoformat(it["date"])
-            tail += ["", t["ask"].format(wdl=WD_LONG[lang][d.weekday()], dm=dm(d, lang), sug=hrs(it["hours"], lang))]
-        short = "\n".join(lines + tail[1:])  # used when the header image already shows the date and hours
-        lines += block(it, False) + tail
-        return {"header": WA_HEAD[lang], "body": "\n".join(lines), "body_with_card": short, "footer": "Connect · demo"}
-    else:
-        lines.append(t["multi"].format(name=f"*{ctx['name']}*", n=len(items)))
-        for it in items:
-            lines += [""] + block(it, True)
-    return {"header": WA_HEAD[lang], "body": "\n".join(lines), "footer": "Connect · demo"}
+            why += " " + t["ask"].format(wdl=WD_LONG[lang][d.weekday()], dm=dm(d, lang), sug=hrs(it["hours"], lang))
+        facts = [f"🔴 {lbl[0]}: ~{hrs(it['shown_hours'], lang)}~", f"🟢 {lbl[1]}: *{hrs(it['hours'], lang)}*"]
+        tail = ["", f"💡 *{lbl[2]}:* {why}", "", lbl[3]]
+        body = "\n".join(head + [title(it)] + facts + tail)
+        short = "\n".join(head + [title(it)] + tail)   # the header card already shows the hours
+        return {"header": WA_HEAD[lang], "body": body, "body_with_card": short, "footer": "Connect · demo"}
+    lines = head + [t["multi"].format(name=f"*{ctx['name']}*", n=len(items))]
+    for it in items:
+        k = _basis_key(it)
+        why = t["b_ask"].format(sug=hrs(it["hours"], lang)) if it.get("mode") == "ask" else (
+            t["b_" + k].format(**_fill(it, lang)) if k != "OTHER" else "")
+        lines += ["", title(it), f"   🔴 ~{hrs(it['shown_hours'], lang)}~  →  🟢 *{hrs(it['hours'], lang)}*"]
+        if why:
+            lines.append(f"   💡 _{why}_")
+    lines += ["", lbl[3]]
+    body = "\n".join(lines)
+    return {"header": WA_HEAD[lang], "body": body, "body_with_card": body, "footer": "Connect · demo"}
 
 
 # ------------------------------------------------------------------ follow-ups
@@ -451,19 +468,19 @@ def confirmation(ctx: dict, applied: list, listings: list, edited: bool, kept: i
                  permission: bool = False) -> str:
     lang = lang_of(ctx.get("lang"))
     t = T[lang]
-    lines = [t["done_edit"] if edited else t["done"]] + _applied_lines(applied, lang, ctx.get("events"))
+    lines = ["✅ " + (t["done_edit"] if edited else t["done"])] + _applied_lines(applied, lang, ctx.get("events"))
     if kept:
         lines.append(t["kept"].format(n=kept))
-    lines.append(t["live_on"].format(list=live_list(listings, lang)))
+    lines += ["", "📍 " + t["live_on"].format(list=live_list(listings, lang))]
     if permission:
         lines.append(t["perm_on"])
     if ctx.get("views"):
-        lines += ["", t["value"].format(views=fmt_int(ctx["views"], lang))]
+        lines += ["", "👀 " + t["value"].format(views=fmt_int(ctx["views"], lang))]
     return "\n".join(lines)
 
 
 def declined(ctx: dict) -> str:
-    return T[lang_of(ctx.get("lang"))]["declined"]
+    return "👍 " + T[lang_of(ctx.get("lang"))]["declined"]
 
 
 def edit_prompt(ctx: dict, url: str) -> str:
@@ -475,7 +492,7 @@ def auto_applied(ctx: dict, applied: list, listings: list, undo_url: str) -> str
     t = T[lang]
     lines = [t["auto"].format(first=ctx["first"], name=ctx["name"])] + _applied_lines(applied, lang,
                                                                                        ctx.get("events"))
-    lines.append(t["live_on"].format(list=live_list(listings, lang)))
+    lines += ["", "📍 " + t["live_on"].format(list=live_list(listings, lang))]
     lines.append(t["undo"].format(url=undo_url))
     lines.append(t["sign"])
     return "\n".join(lines)

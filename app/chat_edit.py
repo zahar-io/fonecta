@@ -44,9 +44,9 @@ def parse_hours(text: str) -> str | None:
     return out if ivs and is_valid(out) else None
 
 
-Q = {"en": ("What hours will you be open on {day}, {wd} {dm}?\nReply like *9-17*, *10am-4pm*, *10-14, 17-22* or *closed*.",
-            "Got it: *{day}, {wd} {dm}: {h}*. Save it?", "Sorry, I didn't catch that. Try *9-17* or *closed*.",
-            ("Save", "Try again"), "OK, tell me the hours again for {day}."),
+Q = {"en": ("✏️ What hours will you be open on {day}, {wd} {dm}?\nReply like *9-17*, *10am-4pm*, *10-14, 17-22* or *closed*.",
+            "👍 Got it: *{day}, {wd} {dm}: {h}*. Save it?", "Sorry, I didn't catch that. Try *9-17* or *closed*.",
+            ("💾 Save", "↩️ Try again"), "OK, tell me the hours again for {day}."),
      "fi": ("Mihin aikaan olette auki {day}na, {wd} {dm}?\nVastaa esim. *9-17*, *10-14, 17-22* tai *kiinni*.",
             "Selvä: *{day}, {wd} {dm}: {h}*. Tallennetaanko?", "En ymmärtänyt. Kokeile *9-17* tai *kiinni*.",
             ("Tallenna", "Uudestaan"), "OK, kerro {day} aukioloajat uudelleen."),
@@ -138,7 +138,7 @@ ASK_HOURS = {"en": "Which hours for {days}? Reply like *16-22* or *closed*.",
              "fi": "Mitkä aukioloajat {days}? Vastaa esim. *16-22* tai *kiinni*.",
              "sv": "Vilka tider {days}? Svara t.ex. *16-22* eller *stängt*.",
              "nb": "Hvilke tider {days}? Svar f.eks. *16-22* eller *stengt*."}
-CONFIRM_REQ = {"en": "Set *{days}* to *{h}*? Google currently shows: {shown}.",
+CONFIRM_REQ = {"en": "📅 *{days}*\n🔴 Google shows: {shown}\n🟢 New hours: *{h}*\n\nSave this change?",
                "fi": "Asetetaanko *{days}*: *{h}*? Google näyttää nyt: {shown}.",
                "sv": "Ändra *{days}* till *{h}*? Google visar nu: {shown}.",
                "nb": "Endre *{days}* til *{h}*? Google viser nå: {shown}."}

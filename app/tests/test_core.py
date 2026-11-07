@@ -173,3 +173,31 @@ class DecisionsAndBestTime(unittest.TestCase):
         rp = self.L.reply_profile("E1", "12-16")
         self.assertEqual(rp["window"], "07-09")  # 05:10-06:20 UTC = 07:10-08:20 Helsinki
         self.assertIn("learned from 3 replies", rp["source"])
+
+
+class Shifts(unittest.TestCase):
+    def test_gap_only_when_opening_shift_unclaimed(self):
+        from datetime import date
+        from app import shifts
+        d = date(2026, 11, 9)
+        self.assertIsNone(shifts.opening_gap("FI-D0001", d))
+        st = {"shift_overrides": {"FI-D0001": {d.isoformat(): {"07:00": None}}}}
+        g = shifts.opening_gap("FI-D0001", d, st)
+        self.assertEqual((g["start"], g["role"]), ("07:00", "Opening barista"))
+        self.assertIn("nobody has claimed", shifts.alert_text("Mikko", "Kahvila Aurora", d, g))
+        self.assertEqual(shifts.schedule("NOPE", d), [])
+
+
+class ExtraChannels(unittest.TestCase):
+    def test_off_by_default(self):
+        from app.channels_extra import IMessageChannel, SmsChannel
+        os.environ.pop("SMS_ENABLED", None)
+        os.environ.pop("IMESSAGE_ENABLED", None)
+        self.assertTrue(SmsChannel().send_text("+358", "hi")["disabled"])
+        self.assertTrue(IMessageChannel().send_text("+358", "hi")["disabled"])
+
+    def test_sms_reply(self):
+        from app.channels_extra import parse_sms_reply
+        self.assertEqual(parse_sms_reply(" 1 ")[0], "approve")
+        self.assertEqual(parse_sms_reply("Ei")[0], "decline")
+        self.assertEqual(parse_sms_reply("open 9 to 13"), ("text", "open 9 to 13"))

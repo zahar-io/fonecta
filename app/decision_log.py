@@ -15,7 +15,7 @@ router = APIRouter()
 E_ = html.escape
 WHAT = {"sent": "Suggestion sent", "decision": "Owner decided", "owner request": "Owner asked (own words)",
         "auto-applied": "Applied (standing permission)", "review reply": "Review reply", "escalated": "Sent to backup",
-        "urgent call": "Phone call", "decline reason": "Decline reason", "undo": "Undone by owner"}
+        "urgent call": "Phone call", "decline reason": "Decline reason", "undo": "Undone by owner", "shift alert": "Staff shift alert"}
 
 
 def _when(at):

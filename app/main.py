@@ -600,9 +600,23 @@ def _auto_calls():
             pass
 
 
+def _shift_evening():
+    """Once an evening (19:00-21:00 Helsinki), check tomorrow's opening shift for every business with a schedule."""
+    if os.environ.get("SHIFT_CHECK", "1") != "1" or not _in_window("19-21"):
+        return
+    from . import shifts
+    for eid in shifts._data():
+        if not eid.startswith("_"):
+            try:
+                shift_check(eid)
+            except Exception:
+                pass
+
+
 def _background():
     _review_poll()
     _auto_calls()
+    _shift_evening()
 
 
 @app.on_event("startup")
@@ -666,6 +680,8 @@ async def wa_hook(request: Request):
             _request_button(frm, bid)
         elif bid in ("ss", "sc"):
             _settings_button(frm, bid)
+        elif bid in ("shc", "shk"):
+            _shift_button(frm, bid)
     for frm, text in channels.parse_texts(payload):
         _edit_text(frm, text)
     for frm, media in channels.parse_audio(payload):
@@ -830,6 +846,79 @@ def _free_text(frm, text):
         m = chat_edit.CONFIRM_REQ[lang].format(days=_days_text(c, ds), h=hn, shown=shown)
         b = chat_edit.buttons(lang)
         _log(c, "request: confirm", m, _wa().send_buttons(frm, m, [("rs", b[0]), ("rc", "Cancel" if lang == "en" else b[1])]))
+    e.save()
+
+
+@app.post("/api/shift-gap/{eid}")
+def demo_shift_gap(eid: str):
+    """Demo: the shift platform reports that tomorrow's opening barista dropped the shift; run the check now."""
+    from . import shifts
+    day = shifts.tomorrow()
+    rows = shifts.schedule(eid, day, eng().state)
+    if rows:
+        eng().state.setdefault("shift_overrides", {}).setdefault(eid, {})[day.isoformat()] = {rows[0]["start"]: None}
+    return JSONResponse(shift_check(eid, force=True))
+
+
+def shift_check(eid: str, force: bool = False) -> dict:
+    """Evening check of tomorrow's opening shift; WhatsApp the owner if nobody is on it (once per date)."""
+    from . import shifts
+    e = eng()
+    day = shifts.tomorrow()
+    gap = shifts.opening_gap(eid, day, e.state)
+    if not gap:
+        return {"gap": None}
+    sent = e.state.setdefault("shift_alerts", {})
+    key = f"{eid}:{day.isoformat()}"
+    if key in sent and not force:
+        return {"gap": gap, "sent": False}
+    ent = __import__("app.kitdata", fromlist=["entities"]).entities().get(eid, {})
+    first = os.environ.get("DEMO_FIRST") or "there"
+    to = os.environ.get("WA_TO", "")
+    text = shifts.alert_text(first, ent.get("name", eid), day, gap)
+    res = _wa().send_buttons(to, text, [("shc", "Close tomorrow AM"), ("shk", "I'll sort it")])
+    sent[key] = {"at": __import__("app.learning", fromlist=["now_iso"]).now_iso(), "gap": gap}
+    e.state.setdefault("wa_shift", {})[channels.WhatsAppCloudChannel().recipient(to) if to else ""] = \
+        {"eid": eid, "date": day.isoformat(), "gap": gap}
+    e.learning.record({"entity_id": eid, "type": "shift alert", "date": day.isoformat(),
+                       "channel": "whatsapp", "gap": gap})
+    e.save()
+    return {"gap": gap, "sent": True, "result": res}
+
+
+def shifts_ampm(h):
+    from .shifts import _ampm
+    return _ampm(h)
+
+
+def _shift_button(frm, bid):
+    e = eng()
+    st = e.state.setdefault("wa_shift", {})
+    req = st.pop(frm, None) or (st.pop(next(iter(st)), None) if len(st) == 1 else None)
+    if not req:
+        return
+    eid, d, gap = req["eid"], req["date"], req["gap"]
+    if bid == "shk":
+        m = "OK, I'll leave tomorrow's hours as they are. Thanks for letting me know."
+        e.learning.record({"entity_id": eid, "type": "decision", "date": d, "decision": "shift: owner will sort it",
+                           "channel": "whatsapp"})
+    else:
+        from datetime import date as _d
+        from .hours import day_str
+        ent = __import__("app.kitdata", fromlist=["entities"]).entities().get(eid, {})
+        wd = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"][_d.fromisoformat(d).weekday()]
+        usual = day_str((ent.get("hours") or {}).get(wd))
+        close_at = gap["end"]
+        hours = f"{close_at}-{usual.split('-')[-1]}" if usual and usual != "closed" and "-" in usual else "closed"
+        if hours != "closed" and hours.split("-")[0] >= hours.split("-")[1]:
+            hours = "closed"
+        out = e.owner_request(eid, {d: hours}, channel="whatsapp (shift alert)")
+        live = ", ".join(out.get("live") or []) if isinstance(out.get("live"), list) else str(out.get("live") or "")
+        m = (("Done. Closed tomorrow on Google" if hours == "closed" else
+              f"Done. Tomorrow you open at {shifts_ampm(close_at)} instead")
+             + ", so nobody walks up to a locked door."
+             + (f" Live on: {live}." if live else ""))
+    _wa().send_text(frm, m)
     e.save()
 
 

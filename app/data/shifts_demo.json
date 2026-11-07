@@ -1,0 +1,2 @@
+{"_note": "SYNTHETIC staff schedule in the shape a shift platform (Planday, Quinyx, When I Work) exposes over its API. Shifts follow the business's regular hours: an opening shift from 30 min before opening to mid-day, a closing shift after that. Demo only.",
+ "FI-D0001": {"staff": {"opening": "Liisa", "closing": "Joonas"}, "overrides": {}}}

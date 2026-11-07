@@ -1,15 +1,73 @@
 {
- "cand_precision": {
-  "peer_special": 0.36207914943886593,
-  "reg_open_peer_close": 0.27913100724160633,
-  "ly1": 0.9325396825396826,
-  "ly2": 0.8560606060606061,
-  "ps1": 0.9333333333333333,
-  "ps2": 0.88,
-  "mall": 0.9074074074074074
- },
+ "model": "v2 (T403): state classifier + candidate expected-points regressor",
  "thr": {
-  "closed": 0.2,
-  "open": 0.3
+  "closed": 0.3,
+  "open": 0.1
+ },
+ "configs": [
+  [
+   {
+    "max_iter": 300,
+    "learning_rate": 0.06,
+    "max_leaf_nodes": 31
+   },
+   {
+    "max_iter": 300,
+    "learning_rate": 0.06,
+    "max_leaf_nodes": 31
+   }
+  ],
+  [
+   {
+    "max_iter": 300,
+    "learning_rate": 0.06,
+    "max_leaf_nodes": 31
+   },
+   {
+    "max_iter": 800,
+    "learning_rate": 0.03,
+    "max_leaf_nodes": 63,
+    "min_samples_leaf": 30
+   }
+  ],
+  [
+   {
+    "max_iter": 800,
+    "learning_rate": 0.03,
+    "max_leaf_nodes": 31,
+    "l2_regularization": 1.0
+   },
+   {
+    "max_iter": 300,
+    "learning_rate": 0.06,
+    "max_leaf_nodes": 31
+   }
+  ],
+  [
+   {
+    "max_iter": 300,
+    "learning_rate": 0.06,
+    "max_leaf_nodes": 31
+   },
+   {
+    "max_iter": 300,
+    "learning_rate": 0.06,
+    "max_leaf_nodes": 31
+   },
+   true
+  ]
+ ],
+ "counts": {
+  "NO_ACTION:None": 24137,
+  "SUGGEST:STATE_MODEL": 11967,
+  "SUGGEST:LY2": 987,
+  "SUGGEST:PATTERN": 523,
+  "SUGGEST:PEER_SPECIAL": 566,
+  "SUGGEST:LY1": 3065,
+  "SUGGEST:REV_CLOSE": 90,
+  "SUGGEST:PS1": 23,
+  "SUGGEST:PS2": 26,
+  "SUGGEST:MALL": 210,
+  "FLAG:CLOSED_SIGNALS": 161
  }
 }

@@ -60,8 +60,35 @@ Settings come only from env vars: `YEXT_BASE_URL` (`https://sbx-api.yextapis.com
 
 | | Score | Exact precision | Recall | Harmful |
 |---|---|---|---|---|
-| Baseline (kit) | 54.5 | 0.90 | 0.59 | 224 |
-| Ours, 5-fold by business on dev 2026 (out-of-fold) | 61.8 | 0.84 | 0.70 | 396 |
+| Baseline (kit), dev 2026 | 54.5 | 0.90 | 0.59 | 224 |
+| Baseline (kit), 2025 back-test | 53.2 | 0.90 | 0.58 | 249 |
+| v1 brain, dev 2026 out-of-fold | 61.8 | 0.84 | 0.70 | 396 |
+| v1 brain, 2025 back-test out-of-fold | 59.3 | 0.83 | 0.68 | 478 |
+| **v2 brain, dev 2026 out-of-fold** | **64.3** | 0.84 | 0.72 | 355 |
+| **v2 brain, 2025 back-test out-of-fold** | **62.3** | 0.84 | 0.69 | 361 |
+
+Protocol: 5-fold GroupKFold by business. Every scored row comes from a business the model didn't train on, in either
+season. The two decision thresholds for one season are picked on the other season's out-of-fold sweep, never on
+the season being scored. No test labels are used. Receipts are `outputs/cv_dev_2026.csv` and `outputs/cv_backtest_2025.csv`,
+scored with the kit's `evaluation/evaluate.py`.
+
+**v2 (T403)** adds:
+- a candidate model that scores about 30 hours candidates per date (last year, mall, Google edits, peers, shifts of
+  the shown hours, mixes of these) by the scorer points it expects;
+- the decision takes the action with the highest expected points (+1 exact, -0.5 needless, -1 wrong state);
+- owner-level habit across all their special days, plus entries already made for this season;
+- last season's activity over the Christmas cluster against a stable autumn baseline, and an activity-collapse signal;
+- 2025 pilot decisions;
+- reviews that name the holiday ("closed on Epiphany", "closed already at 18 on NYE"), used both as a state signal
+  and as an hours candidate;
+- an average of 4 model configs, one of them also trained on the 2025 season.
+
+Where the rest of the gap is: with perfect open/closed knowledge, the same pipeline would score 90.6 on dev. With
+perfect hours-candidate choice it would score 69.5. So the open/closed state is the limit. About two thirds of the
+rows have no owner entry from last season, and the honest signals there (peers, activity, reviews) are weak.
+
+Reproduce: `brain/cache.py`, `brain/cache2.py`, then `REPREP=1 TAG=… brain/v2.py` for each config, then
+`brain/ens.py f3,f3c,f3s,f3x`, then `brain/final.py` (`THR_CLOSED=0.3 THR_OPEN=0.1`, `CONFIGS` in `brain/report.json`).
 
 `predictions_2026.csv` in the repo root covers every target row. The dev number above is out-of-fold: it's scored only on businesses the model didn't train on.
 

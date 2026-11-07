@@ -633,7 +633,9 @@ class Engine:
             d = date.fromisoformat(first["date"])
             what = messages.bullet(first, lang, first.get("event_name")).lstrip("• ")
             text = call.script(lang, first=c["first"] or c["name"], name=c["name"],
-                               when=f"{messages.WD_LONG[lang][d.weekday()]} {messages.dm(d, lang)}", what=what)
+                               when=(f"{messages.WD_LONG[lang][d.weekday()]}, {d.day} {d.strftime('%B')}" if lang == "en"
+                                     else f"{messages.WD_LONG[lang][d.weekday()]} {messages.dm(d, lang)}"), what=what,
+                               shown=call.spoken_hours(first["shown_hours"]), sug=call.spoken_hours(first["hours"]))
             res = call.place(text, f"Connect Suggests demo: urgent hours suggestion for {c['name']} ({first['date']}). "
                                    f"Explain it in {lang} and ask the owner to tap Approve in the message.",
                              c.get("to_phone"))

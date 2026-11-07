@@ -29,7 +29,28 @@ SCRIPT = {
 }
 
 
+def spoken_time(t: str) -> str:
+    """'16:00' -> '4 pm', '07:30' -> '7:30 am' (how people say it on the phone)."""
+    h, m = int(t[:2]), int(t[3:5])
+    ap = "am" if h < 12 else "pm"
+    h12 = h % 12 or 12
+    return f"{h12}{':%02d' % m if m else ''} {ap}"
+
+
+def spoken_hours(h: str) -> str:
+    if h == "closed":
+        return "closed"
+    a, b = h.split(",")[0].split("-")[0], h.split(",")[-1].split("-")[-1]
+    return f"open from {spoken_time(a)} to {spoken_time(b)}"
+
+
+SHORT_EN = ("Hi {first}, it's Connect, your AI assistant. On {when}, Google shows {name} as {shown}, "
+            "but we think you're {sug}. I've sent you a WhatsApp message. Tap Approve if that's right. Thanks!")
+
+
 def script(lang: str, **kw) -> str:
+    if lang == "en" and "shown" in kw:
+        return SHORT_EN.format(**kw)
     return SCRIPT.get(lang, SCRIPT["en"]).format(**kw)
 
 

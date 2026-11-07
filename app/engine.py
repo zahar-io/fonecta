@@ -341,10 +341,27 @@ class Engine:
                 c["via"] = via
             ch = self._chan(c, via)
             tok = c["token"]
-            res = ch.send_suggestion(c.get("to_phone"), msg, [f"a:{tok}", f"e:{tok}", f"d:{tok}"])
+            per_date = ch.real and os.environ.get("WA_PER_DATE", "1") == "1"
+            if per_date:  # each date is its own decision: one message per date, its own buttons and link
+                res = None
+                for it in sorted([i for i in c["items"] if i["status"] == "pending" and i["action"] == "SUGGEST"],
+                                 key=lambda i: i["date"]):
+                    t1 = tokens.sign({"c": c["id"], "e": c["entity_id"], "d": it["date"]})
+                    m1 = messages.compose(self.ctx(c), [it], f"{config.public_base()}/s/{t1}")
+                    try:
+                        from .cards import hours_card
+                        m1["wa"]["image"] = hours_card(c["name"], dict(it, entity_id=c["entity_id"]), c["lang"])
+                    except Exception:
+                        pass
+                    res = ch.send_suggestion(c.get("to_phone"), m1, [f"a:{t1}", f"e:{t1}", f"d:{t1}"])
+                    it["token"] = t1
+                    c["outbox"].append({"at": now_iso(), "kind": f"suggestion {it['date']}",
+                                        "channel": self._chan_name(c, via), "text": m1["text"], "result": res})
+            else:
+                res = ch.send_suggestion(c.get("to_phone"), msg, [f"a:{tok}", f"e:{tok}", f"d:{tok}"])
+                c["outbox"].append({"at": now_iso(), "kind": "suggestion", "channel": self._chan_name(c, via),
+                                    "text": msg["text"], "result": res})
             c["message"] = msg
-            c["outbox"].append({"at": now_iso(), "kind": "suggestion", "channel": self._chan_name(c, via),
-                                "text": msg["text"], "result": res})
             for i in c["items"]:
                 if i["status"] == "pending" and i["action"] == "SUGGEST":
                     i["status"] = "sent"

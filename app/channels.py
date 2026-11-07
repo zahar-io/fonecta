@@ -100,11 +100,37 @@ class WhatsAppCloudChannel(Channel):
                              + [{"type": "button", "sub_type": "quick_reply", "index": str(i),
                                  "parameters": [{"type": "payload", "payload": bid}]} for i, bid in enumerate(button_ids[:3])]}}
 
+    def upload_image(self, path: str) -> str | None:
+        """POST /{phone_id}/media (multipart) -> media id, or None."""
+        import uuid as _u
+        bnd = "----flovr" + _u.uuid4().hex
+        data = open(path, "rb").read()
+        body = (f"--{bnd}\r\nContent-Disposition: form-data; name=\"messaging_product\"\r\n\r\nwhatsapp\r\n"
+                f"--{bnd}\r\nContent-Disposition: form-data; name=\"type\"\r\n\r\nimage/png\r\n"
+                f"--{bnd}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"card.png\"\r\n"
+                f"Content-Type: image/png\r\n\r\n").encode() + data + f"\r\n--{bnd}--\r\n".encode()
+        req = urllib.request.Request(f"{GRAPH}/{self.phone_id}/media", data=body, method="POST",
+                                     headers={"Authorization": "Bearer " + os.environ.get("WA_TOKEN", ""),
+                                              "Content-Type": f"multipart/form-data; boundary={bnd}"})
+        try:
+            with urllib.request.urlopen(req, timeout=20) as r:
+                return json.loads(r.read().decode()).get("id")
+        except (urllib.error.URLError, OSError, ValueError):
+            return None
+
     def send_suggestion(self, to, msg, button_ids):
         if not wa_configured():
             return {"ok": False, "channel": "whatsapp", "error": "WhatsApp not configured"}
         build = self.template_payload if os.environ.get("WA_TEMPLATE") else self.interactive_payload
-        r = self._transport(f"{GRAPH}/{self.phone_id}/messages", build(self.recipient(to), msg, button_ids))
+        payload = build(self.recipient(to), msg, button_ids)
+        img = (msg.get("wa") or {}).get("image")
+        if img and payload.get("type") == "interactive" and os.environ.get("WA_CARDS", "1") == "1":
+            mid = self.upload_image(img)
+            if mid:
+                payload["interactive"]["header"] = {"type": "image", "image": {"id": mid}}
+                if (msg.get("wa") or {}).get("body_with_card"):
+                    payload["interactive"]["body"]["text"] = msg["wa"]["body_with_card"]
+        r = self._transport(f"{GRAPH}/{self.phone_id}/messages", payload)
         return {"ok": "error" not in r, "channel": "whatsapp", "delivered": "error" not in r,
                 "provider_id": ((r.get("messages") or [{}])[0]).get("id"), "error": r.get("error")}
 

@@ -390,8 +390,6 @@ def compose(ctx: dict, items: list, url: str) -> dict:
     else:
         lines.append(t["multi"].format(name=ctx["name"], n=len(items)))
         lines.extend(bullet(i, lang, ev_names.get(i.get("event_id"))) for i in items)
-    if ctx.get("views"):
-        lines.append(t["value"].format(views=fmt_int(ctx["views"], lang)))
     body = "\n".join(lines[:1] + [""] + lines[1:])
     buttons = list(t["buttons"])
     text = body + "\n" + " ".join(f"[{b}]" for b in buttons) + "\n" + t["link"].format(url=url) + "\n" + t["sign"]
@@ -405,26 +403,37 @@ WA_HEAD = {"fi": "Pyhäpäivien aukioloajat", "sv": "Öppettider under helgerna"
 
 
 def wa_format(ctx: dict, items: list, url: str) -> dict:
-    """WhatsApp-native version: a header, one compact block per date (struck-out wrong hours → bold right ones),
-    the reason in italics, the value line, and the no-login link. Buttons are added by the channel."""
+    """WhatsApp-native version: a header, Google's wrong hours struck out next to ours in bold, the reason, and
+    buttons (added by the channel). One date per message is the default: each date is its own decision."""
     lang = lang_of(ctx.get("lang"))
     t = T[lang]
     ev_names = ctx.get("events") or {}
-    lines = [t["hi"].format(first=ctx["first"]), ""]
     items = sorted(items, key=lambda i: i["date"])
-    lines.append(t["multi"].format(name=f"*{ctx['name']}*", n=len(items)) if len(items) > 1
-                 else why_sentence(items[0], lang))
-    for it in items:
+    lines = [t["hi"].format(first=ctx["first"]), ""]
+
+    def block(it, short_why):
         d = date.fromisoformat(it["date"])
         k = _basis_key(it)
-        why = t["b_" + k].format(**_fill(it, lang)) if k != "OTHER" else ""
+        why = ""
+        if short_why:
+            why = t["b_ask"].format(sug=hrs(it["hours"], lang)) if it.get("mode") == "ask" else (
+                t["b_" + k].format(**_fill(it, lang)) if k != "OTHER" else "")
+        return [f"*{day_name(it, lang, ev_names.get(it.get('event_id')))}, {WD_SHORT[lang][d.weekday()]} {dm(d, lang)}*",
+                f"~{hrs(it['shown_hours'], lang)}~ → *{hrs(it['hours'], lang)}*" + (f"  _{why}_" if why else "")]
+
+    if len(items) == 1:
+        it = items[0]
+        tail = ["", why_sentence(it, lang)]
         if it.get("mode") == "ask":
-            why = t["b_ask"].format(sug=hrs(it["hours"], lang))
-        lines += ["", f"*{WD_SHORT[lang][d.weekday()]} {dm(d, lang)}* · {day_name(it, lang, ev_names.get(it.get('event_id')))}",
-                  f"~{hrs(it['shown_hours'], lang)}~ → *{hrs(it['hours'], lang)}*" + (f"  _{why}_" if why else "")]
-    if ctx.get("views"):
-        lines += ["", "_" + t["value"].format(views=fmt_int(ctx["views"], lang)) + "_"]
-    lines += ["", t["link"].format(url=url)]
+            d = date.fromisoformat(it["date"])
+            tail += ["", t["ask"].format(wdl=WD_LONG[lang][d.weekday()], dm=dm(d, lang), sug=hrs(it["hours"], lang))]
+        short = "\n".join(lines + tail[1:])  # used when the header image already shows the date and hours
+        lines += block(it, False) + tail
+        return {"header": WA_HEAD[lang], "body": "\n".join(lines), "body_with_card": short, "footer": "Connect · demo"}
+    else:
+        lines.append(t["multi"].format(name=f"*{ctx['name']}*", n=len(items)))
+        for it in items:
+            lines += [""] + block(it, True)
     return {"header": WA_HEAD[lang], "body": "\n".join(lines), "footer": "Connect · demo"}
 
 
@@ -448,6 +457,8 @@ def confirmation(ctx: dict, applied: list, listings: list, edited: bool, kept: i
     lines.append(t["live_on"].format(list=live_list(listings, lang)))
     if permission:
         lines.append(t["perm_on"])
+    if ctx.get("views"):
+        lines += ["", t["value"].format(views=fmt_int(ctx["views"], lang))]
     return "\n".join(lines)
 
 

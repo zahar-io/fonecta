@@ -288,11 +288,12 @@ def owner_page(link: str):
     if body.get("u"):
         return page("Undo", f"<div class=card><pre>{E((c.get('outbox') or [{}])[-1].get('text', ''))}</pre>"
                             f"<form method=post action='/s/{E(link)}/undo'><button class='btn g'>Undo this change</button></form></div>", True)
-    open_items = [i for i in c["items"] if i["status"] in ("pending", "sent") and i["action"] == "SUGGEST"]
+    open_items = [i for i in c["items"] if i["status"] in ("pending", "sent") and i["action"] == "SUGGEST"
+                  and (not body.get("d") or i["date"] == body["d"])]
     if not open_items:
         last = (c.get("outbox") or [{}])[-1].get("text", "")
         return page("Done", f"<div class=card><h3>{E(c['name'])}</h3><pre>{E(last)}</pre></div>", True)
-    msg = c.get("message") or eng().compose(c)
+    msg = messages.compose(eng().ctx(c), open_items, f"{config.public_base()}/s/{link}")
     rows = ""
     for it in sorted(open_items, key=lambda i: i["date"]):
         o, cl = times(it["hours"])
@@ -464,10 +465,12 @@ async def wa_hook(request: Request):
             body, c = load_link(link)
         except HTTPException:
             continue
-        if kind == "a":
-            eng().decide_all(c["id"], "approve", channel="whatsapp")
-        elif kind == "d":
-            eng().decide_all(c["id"], "decline", channel="whatsapp")
+        if kind in ("a", "d"):
+            act = "approve" if kind == "a" else "decline"
+            if body.get("d"):  # a per-date message: decide only that date
+                eng().decide(c["id"], {body["d"]: {"action": act}}, channel="whatsapp")
+            else:
+                eng().decide_all(c["id"], act, channel="whatsapp")
         elif kind == "e":
             e = eng()
             e._deliver_text(c, messages.edit_prompt(e.ctx(c), f"{config.public_base()}/s/{link}"), "edit link")

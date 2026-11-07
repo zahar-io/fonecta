@@ -37,6 +37,8 @@ Settings come only from env vars: `YEXT_BASE_URL` (`https://sbx-api.yextapis.com
 
 ## Beyond the five steps (same loop, more cases)
 
+- **Channel-agnostic:** the decision engine talks to a `Channel` interface (`app/channels.py`). Live: WhatsApp (buttons, chat, voice notes) and WhatsApp voice calls. Built as previews: SMS and email. Adding phone calls (telephony provider) or iMessage (Apple Messages for Business) means one new class; detection, decisions and learning don't change.
+
 - **Escalation (hierarchy):** if there's no answer within `ESCALATE_HOURS` (24 h), the same suggestion goes to the next approver from `app/var/approvers.json`. Whoever taps first decides, and the audit trail records who.
 - **Urgent call:** a real **WhatsApp voice call** (Cloud API Calling, WebRTC via aiortc) that speaks the suggestion, after the owner granted call permission; a spoken voice note is the fallback.
 - **Urgent call (other transports):** if the date is within 48 h and the owner has been silent for 4 h, one voice call explains the suggestion and asks them to tap Approve. A call never decides by itself. `app/call.py` offers preview mode or Flovr's existing voice service (pre-existing, not part of this repo).

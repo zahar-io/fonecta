@@ -451,6 +451,11 @@ def wa_verify(request: Request):
 @app.post("/webhook/whatsapp")
 async def wa_hook(request: Request):
     payload = await request.json()
+    try:  # keep a small log of what Meta sends (message types / statuses only, no tokens)
+        with open(os.path.join(config.var_dir(), "wa_events.jsonl"), "a", encoding="utf-8") as f:
+            f.write(json.dumps(payload, ensure_ascii=False)[:4000] + "\n")
+    except OSError:
+        pass
     for frm, bid in channels.parse_webhook(payload):
         if not bid or ":" not in bid:
             continue

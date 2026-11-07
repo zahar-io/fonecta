@@ -38,7 +38,8 @@ Settings come only from env vars: `YEXT_BASE_URL` (`https://sbx-api.yextapis.com
 ## Beyond the five steps (same loop, more cases)
 
 - **Escalation (hierarchy):** if there's no answer within `ESCALATE_HOURS` (24 h), the same suggestion goes to the next approver from `app/var/approvers.json`. Whoever taps first decides, and the audit trail records who.
-- **Urgent call:** if the date is within 48 h and the owner has been silent for 4 h, one voice call explains the suggestion and asks them to tap Approve. A call never decides by itself. `app/call.py` offers preview mode or Flovr's existing voice service (pre-existing, not part of this repo).
+- **Urgent call:** a real **WhatsApp voice call** (Cloud API Calling, WebRTC via aiortc) that speaks the suggestion, after the owner granted call permission; a spoken voice note is the fallback.
+- **Urgent call (other transports):** if the date is within 48 h and the owner has been silent for 4 h, one voice call explains the suggestion and asks them to tap Approve. A call never decides by itself. `app/call.py` offers preview mode or Flovr's existing voice service (pre-existing, not part of this repo).
 - **Reviews (extensibility):** a bad review gets a reply drafted in the review's own language (fi/sv/nb/en). The owner posts, edits or skips (no login), and the reply goes to Yext's Reviews API. Good reviews feed a weekly summary of what people praised. `app/reviews.py`.
 - **Live events:** "stay open later?" questions from Helsinki LinkedEvents (live). See below.
 - **Listing preview:** after approving, the owner sees how their special hours will show, labelled as a preview.
@@ -92,6 +93,7 @@ See [docs/MESSAGES.md](docs/MESSAGES.md): verbatim output for fi/sv/nb/en, inclu
 | pandas, NumPy, scikit-learn, PyArrow | BSD-3 / Apache-2.0 |
 | python-multipart, eval_type_backport | Apache-2.0 / MIT |
 | Playwright (demo recorder only), Pillow | Apache-2.0 / MIT-CMU |
+| aiortc, PyAV (WhatsApp voice call) | BSD-3-Clause; PyAV wheels bundle FFmpeg under LGPL (not GPL) |
 | Helsinki LinkedEvents data | CC BY 4.0 |
 
 No GPL/AGPL components. GenAI used: Claude (Anthropic) via Claude Code, for code and copy, with every result checked by running it.

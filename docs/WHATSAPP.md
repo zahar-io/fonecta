@@ -4,7 +4,7 @@
 
 ## Switch it on (demo)
 1. Meta developer app with the WhatsApp product (free test number, or our own number). Add the demo phones as recipients.
-2. Run the app with `WA_PHONE_NUMBER_ID`, `WA_TOKEN`, `WA_VERIFY_TOKEN`, `WA_TO=<demo phone>` and `APP_BASE_URL=<tunnel url>`.
+2. Run the app with `WA_PHONE_NUMBER_ID`, `WA_TOKEN`, `WA_VERIFY_TOKEN`, `WA_TO=<demo phone>`, and expose port 8800 through a tunnel so Meta can reach `/webhook/whatsapp`.
 3. Run `cloudflared tunnel --url http://localhost:8800` and set the webhook in Meta to `<tunnel>/webhook/whatsapp` with the verify token. Subscribe to `messages`.
 4. **24 h rule:** a business can only send free-form or interactive messages within 24 h of the customer's last message. For the demo, the phone sends "hi" first.
 

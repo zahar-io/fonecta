@@ -283,6 +283,22 @@ class WeeklySummaryAllReviews(unittest.TestCase):
         self.assertIn("closed when listed open", s)
         self.assertIn("waiting", s)
 
+    def test_summary_reads_every_review(self):
+        from datetime import datetime
+        from app import reviews as rv
+        end = datetime(2026, 11, 7, 12, 0)
+        ms = int(end.timestamp() * 1000) - 3600_000
+        rs = [{"rating": 4, "content": "Lovely atmosphere, a bit of a wait", "publisherDate": ms},
+              {"rating": 3, "content": "Good coffee", "publisherDate": ms},
+              {"rating": 1, "content": "Rude service", "publisherDate": ms}]
+        s = rv.weekly_summary(rs, "en", end)
+        self.assertIn("Reviews ", s)
+        self.assertIn(": 3, average", s)
+        self.assertIn("waiting (1)", s)        # a complaint inside a 4★ review counts
+        self.assertIn("coffee (1)", s)         # praise inside a 3★ review counts
+        self.assertIn("rude service (1)", s)
+        self.assertNotIn("staff", s)           # "service" in a 1★ review is not praise
+
 
 class CallOwnerTwiceThenBackup(unittest.TestCase):
     def test_two_owner_calls_then_backup_call(self):

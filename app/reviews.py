@@ -151,10 +151,12 @@ def weekly_summary(reviews: list, owner_lang: str, end: datetime) -> str:
         return o[4]
     avg = sum(r.get("rating") or 0 for r in wk) / len(wk)
     stars = [r.get("rating") or 0 for r in wk]
-    c = Counter(t for r in wk if (r.get("rating") or 0) >= 4 for t in topics(r.get("content"), GOOD))
+    # Every review counts. Complaint words are negative on their own, so they're read from all reviews (a 4★ "long wait"
+    # still counts). Praise words are only topics ("coffee", "service"), so they're read from 3★+ reviews, where they mean praise.
+    c = Counter(t for r in wk if (r.get("rating") or 0) >= 3 for t in topics(r.get("content"), GOOD))
     names = TOPIC_NAMES.get(owner_lang, TOPIC_NAMES["en"])
     top = ", ".join(f"{names[k]} ({n})" for k, n in c.most_common(3)) or "–"
-    cb = Counter(t for r in wk if (r.get("rating") or 0) <= 3 or is_bad(r) for t in topics(r.get("content"), BAD))
+    cb = Counter(t for r in wk for t in topics(r.get("content"), BAD))
     bn = BAD_NAMES.get(owner_lang, BAD_NAMES["en"])
     low = ", ".join(f"{bn[k]} ({n})" for k, n in cb.most_common(3)) or "–"
     return o[3].format(start=start.strftime("%d.%m."), end=end.strftime("%d.%m."), n=len(wk), avg=f"{avg:.1f}",

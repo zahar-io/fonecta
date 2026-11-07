@@ -11,19 +11,30 @@ dataset. No real customer data.
 
 ## Run it
 
+Needs Python 3.9–3.13 (3.12 recommended) and Fonecta's starter kit (`FONECTA_CONNECT_SUGGESTS_2026`: data, Yext mock, scorer).
+Tested from a fresh clone on macOS on 8 Nov.
+
 ```bash
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-export FONECTA_KIT=/path/to/FONECTA_CONNECT_SUGGESTS_2026        # the starter kit (data + Yext mock)
-python $FONECTA_KIT/mock_api/server.py &                          # Yext mock on :8787
-.venv/bin/python brain/model.py                                   # trains, writes predictions_2026.csv (+ explained CSV)
+git clone https://github.com/zahar-io/fonecta.git && cd fonecta
+uv venv --python 3.12 .venv && VIRTUAL_ENV=.venv uv pip install -r requirements.txt   # or: python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt
+export FONECTA_KIT=/path/to/FONECTA_CONNECT_SUGGESTS_2026
+
+python3 $FONECTA_KIT/mock_api/server.py &                         # Yext mock on :8787
+.venv/bin/python brain/model.py                                   # ~1-2 min: trains, writes predictions_2026.csv + outputs/
+(cd $FONECTA_KIT && $OLDPWD/.venv/bin/python evaluation/evaluate.py --predictions $OLDPWD/outputs/cv_dev_2026.csv)   # Score: 61.84
 BRAIN_PREDICTIONS=$PWD/outputs/predictions_2026_explained.csv \
   .venv/bin/python -m uvicorn app.main:app --port 8800            # ops console: http://localhost:8800
-.venv/bin/python -m unittest discover app/tests                   # 22 tests, no network
+.venv/bin/python -m unittest discover app/tests                   # unit tests, no network
 ```
+
+In the console: **1 · Run detection**, then on any business **3 · Send** and **Simulate owner**. The decision is written to
+the Yext mock and the confirmation appears in the case. `/demo?eid=FI-D0001` is the presenter view and `/log` the decision log.
+Without WhatsApp keys every message is a preview in the console (nothing leaves the machine); with them the same flow runs on
+a real phone (see [docs/WHATSAPP.md](docs/WHATSAPP.md)). Live events need internet (Helsinki LinkedEvents); set `LIVE_EVENTS=0` to skip them.
 
 Settings come only from env vars: `YEXT_BASE_URL` (`https://sbx-api.yextapis.com/v2` for the team sandbox), `YEXT_API_KEY`,
 `YEXT_ENTITY_MAP` (e.g. `FI-D0001=SinceAI15`, so a demo business writes to a real sandbox entity), `WA_PHONE_NUMBER_ID`,
-`WA_TOKEN`, `WA_VERIFY_TOKEN`, `APP_BASE_URL` (public tunnel URL for links), `APP_SECRET`. Nothing secret is in this repo.
+`WA_TOKEN`, `WA_VERIFY_TOKEN`, `APP_SECRET` (signs button tokens). Nothing secret is in this repo.
 
 ## The five steps
 

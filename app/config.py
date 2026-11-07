@@ -51,11 +51,6 @@ def yext_key() -> str:
     return os.environ.get("YEXT_API_KEY", "demo")
 
 
-def public_base() -> str:
-    """Base URL used in links sent to owners (set to your tunnel URL for real phones)."""
-    return os.environ.get("APP_BASE_URL", "http://localhost:8800").rstrip("/")
-
-
 def brain_predictions() -> str | None:
     p = os.environ.get("BRAIN_PREDICTIONS")
     return p if p and os.path.exists(p) else None

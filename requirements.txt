@@ -1,7 +1,10 @@
+# Python 3.9 to 3.13. Pinned where it matters for reproducing the score; numpy follows the Python version.
 aiortc==1.13.0
 av==14.2.0
+eval_type_backport>=0.2.2; python_version < "3.10"
 fastapi==0.128.8
-numpy==2.0.2
+numpy==2.0.2; python_version < "3.10"
+numpy>=2.1,<2.4; python_version >= "3.10"
 pandas==2.3.3
 pillow==11.3.0
 pyarrow==21.0.0

@@ -31,7 +31,7 @@ def hours_card(name: str, items, lang: str) -> str:
     d = ImageDraw.Draw(im)
     d.rounded_rectangle((50, 50, W - 50, H - 50), 36, fill="white")
     d.text((100, 90), name, font=_f(40, False), fill=(110, 110, 120))
-    hrs = lambda h: closed if h == "closed" else nice(h)  # noqa: E731
+    hrs = lambda h: closed if h == "closed" else " / ".join(iv.replace("-", "–") for iv in h.split(","))  # full 24 h: 07:30–18:00  # noqa: E731
     if len(items) == 1:
         it = items[0]
         dt = date.fromisoformat(it["date"])
@@ -43,10 +43,10 @@ def hours_card(name: str, items, lang: str) -> str:
         d.text((620, 330), lab_new, font=_f(32, False), fill=(110, 110, 120))
         x_now, x_new, step = 100, 620, 0
     else:
-        d.text((470, 150), lab_now, font=_f(28, False), fill=(110, 110, 120))
-        d.text((760, 150), lab_new, font=_f(28, False), fill=(110, 110, 120))
-        rows, y0, fs = [(i, it) for i, it in enumerate(items)], 200, _f(50)
-        x_now, x_new, step = 470, 760, 92
+        d.text((390, 150), lab_now, font=_f(28, False), fill=(110, 110, 120))
+        d.text((790, 150), lab_new, font=_f(28, False), fill=(110, 110, 120))
+        rows, y0, fs = [(i, it) for i, it in enumerate(items)], 200, _f(46)
+        x_now, x_new, step = 390, 790, 92
     for k, it in rows:
         y = y0 + (k or 0) * step
         if k is not None:
@@ -57,7 +57,10 @@ def hours_card(name: str, items, lang: str) -> str:
         w = d.textlength(shown, font=fs)
         mid = y + (45 if k is None else 30)
         d.line((x_now - 4, mid, x_now + w + 4, mid), fill=(179, 38, 30), width=8 if k is None else 6)
-        d.text((x_new, y), hrs(it["hours"]), font=fs, fill=(24, 128, 56))
+        new_t, fn = hrs(it["hours"]), fs
+        while d.textlength(new_t, font=fn) > W - 90 - x_new and fn.size > 22:  # split hours: shrink to fit the card
+            fn = _f(fn.size - 4)
+        d.text((x_new, y + (fs.size - fn.size) // 2), new_t, font=fn, fill=(24, 128, 56))
     out = os.path.join(config.var_dir(), "cards")
     os.makedirs(out, exist_ok=True)
     path = os.path.join(out, f"{items[0].get('entity_id', 'x')}_{items[0]['date']}_{len(items)}_{lang}.png")

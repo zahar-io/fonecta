@@ -1,6 +1,6 @@
 """Train and predict. Usage:
-    python model.py                 # 5-fold by entity on dev 2026, writes cv report + predictions_2026.csv
-Outputs (repo root): predictions_2026.csv (scorer format + basis + reasons) and brain/report.json
+    python model.py                 # 5-fold by entity on dev 2026, writes cv report + outputs/predictions_2026_v1.csv
+Outputs: outputs/predictions_2026_v1.csv (scorer format) + outputs/predictions_2026_explained.csv (basis + reasons, read by the app) and brain/report.json
 """
 from __future__ import annotations
 
@@ -124,7 +124,7 @@ def main():
     mfull = fit(X.iloc[dev], y)
     csf = cand_stats(dev, meta, L)
     P = mfull.predict_proba(X)
-    out = os.path.join(ROOT, "predictions_2026.csv")
+    out = os.path.join(ROOT, "outputs", "predictions_2026_v1.csv")  # the submitted root file is v2.2 (brain/train.sh)
     expl = os.path.join(ROOT, "outputs", "predictions_2026_explained.csv")
     with open(out, "w", newline="", encoding="utf-8") as g, open(expl, "w", newline="", encoding="utf-8") as g2:
         w, w2 = csv.writer(g), csv.writer(g2)

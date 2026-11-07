@@ -157,8 +157,8 @@ def sweep(D,P,byrow,season):
 if __name__=="__main__":
     import time;t=time.time()
     if os.environ.get('REPREP')=='1':
-        D6=prep(2026); D5=prep(2025); pickle.dump((D6,D5),open('/tmp/t403_D.pkl','wb'))
-    else: D6,D5=pickle.load(open('/tmp/t403_D.pkl','rb'))
+        D6=prep(2026); D5=prep(2025); pickle.dump((D6,D5),open('/tmp/fonecta_brain/D.pkl','wb'))
+    else: D6,D5=pickle.load(open('/tmp/fonecta_brain/D.pkl','rb'))
     for name,ex6,ex5 in [(("own season",None,None),("+other season",D5,D6))[int(os.environ.get("EXTRA","0"))]]:
         P6,b6=oof(D6,ex6); P5,b5=oof(D5,ex5)
         s6=sweep(D6,P6,b6,2026); s5=sweep(D5,P5,b5,2025)
@@ -168,4 +168,4 @@ if __name__=="__main__":
         r5=evaluate(D5,P5,b5,{'closed':best6[1],'open':best6[2]},2025)
         print(name,'2026 OOF (thr from 2025):',r6['score_0_100'],r6['precision_exact'],r6['recall_exact'],r6['harmful_suggestions'],'| 2025 OOF (thr from 2026):',r5['score_0_100'],'| best-in-sample 26/25:',best6[:3],best5[:3],flush=True)
         print('  ',r6['breakdown'])
-        pickle.dump((P6,b6,P5,b5),open(f'/tmp/t403_oof_{os.environ.get("TAG",name[0])}.pkl','wb'))
+        pickle.dump((P6,b6,P5,b5),open(f'/tmp/fonecta_brain/oof_{os.environ.get("TAG",name[0])}.pkl','wb'))

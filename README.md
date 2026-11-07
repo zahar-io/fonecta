@@ -8,7 +8,7 @@ Built during the event by Flovr (Alex, Vova and Zahar, Flovr's AI agent). All da
 dataset. No real customer data.
 
 **For judges:** demo video (2 min): *YouTube link added at submission* · pitch deck: [docs/Flovr_Fonecta_ConnectSuggests_deck.pdf](docs/Flovr_Fonecta_ConnectSuggests_deck.pdf) ·
-`predictions_2026.csv` in the repo root (dev score 61.84 on Fonecta's scorer, baseline 54.5) · final messages: [docs/MESSAGES.md](docs/MESSAGES.md) ·
+`predictions_2026.csv` in the repo root (v2.2 brain: dev 65.1 and 2025 back-test 63.0 on Fonecta's scorer, baseline 54.5 / 53.2) · final messages: [docs/MESSAGES.md](docs/MESSAGES.md) ·
 live source write-up: [docs/LIVE_SOURCES.md](docs/LIVE_SOURCES.md).
 
 ![How it works: Fonecta data, events and reviews go into one brain, the owner decides on WhatsApp or a call, Yext publishes](docs/img/architecture.png)
@@ -24,8 +24,8 @@ uv venv --python 3.12 .venv && VIRTUAL_ENV=.venv uv pip install -r requirements.
 export FONECTA_KIT=/path/to/FONECTA_CONNECT_SUGGESTS_2026
 
 python3 $FONECTA_KIT/mock_api/server.py &                         # Yext mock on :8787
-.venv/bin/python brain/model.py                                   # ~1-2 min: trains, writes predictions_2026.csv + outputs/
-(cd $FONECTA_KIT && $OLDPWD/.venv/bin/python evaluation/evaluate.py --predictions $OLDPWD/outputs/cv_dev_2026.csv)   # Score: 61.84
+.venv/bin/python brain/model.py                                   # ~1-2 min: v1 brain, per-row reasons for the app (outputs/)
+bash brain/train.sh                                               # optional, TIME: v2.2 brain -> predictions_2026.csv, prints the scores (65.1 / 63.0)
 BRAIN_PREDICTIONS=$PWD/outputs/predictions_2026_explained.csv \
   .venv/bin/python -m uvicorn app.main:app --port 8800            # ops console: http://localhost:8800
 .venv/bin/python -m unittest discover app/tests                   # unit tests, no network
@@ -103,7 +103,7 @@ scored with the kit's `evaluation/evaluate.py`.
 common open entry last season as hours candidates: on many holidays a business simply runs its weekend hours. It
 also adds the owner's state on each holiday last season as separate features, because habits correlate across
 holidays (closed on Father's Day goes with closed on Boxing Day at 0.63). Same 3-model calibrated ensemble (h1cal,
-h1calc, v3hcal): `brain/run3.sh`, then `brain/run3b.sh` (thresholds closed 0.1, open -0.1 from the 2025 sweep).
+h1calc, v3hcal), thresholds closed 0.1, open -0.1 picked on the 2025 sweep.
 
 Tried and not kept: a low-confidence FLAG (+0.06, not worth confusing "flag" in the app); adding the 2025 season as
 training rows (worse in both seasons); bigger or slower trees without calibration.
@@ -112,10 +112,10 @@ Where the rest of the gap is: with perfect open/closed knowledge, the same pipel
 perfect hours-candidate choice it would score 69.5. So the open/closed state is the limit. About two thirds of the
 rows have no owner entry from last season, and the honest signals there (peers, activity, reviews) are weak.
 
-Reproduce: `brain/cache.py`, `brain/cache2.py`, then `REPREP=1 TAG=… brain/v2.py` for each config, then
-`brain/ens.py f3,f3c,f3s,f3x`, then `brain/final.py` (`THR_CLOSED=0.3 THR_OPEN=0.1`, `CONFIGS` in `brain/report.json`).
-v2.1: also `brain/cache3.py`, then `REPREP=1 CAL=1 TAG=g1cal brain/v2.py`, `CAL=1 TAG=g1calc CPX=… brain/v2.py` and
-`CAL=1 TAG=v3cal brain/v3.py`, then `brain/ens.py g1cal,g1calc,v3cal`, then `THR_CLOSED=0.1 THR_OPEN=0 brain/final2.py`.
+Reproduce the submitted predictions (v2.2): `FONECTA_KIT=… bash brain/train.sh` runs every step above in order (features,
+caches, the three calibrated models, the ensemble with both seasons' scores, then the final model on all businesses ->
+`predictions_2026.csv`). The ops app itself reads the v1 brain's per-row reasons (`brain/model.py` ->
+`outputs/predictions_2026_explained.csv`), because those carry the human-readable "why" shown to owners.
 
 `predictions_2026.csv` in the repo root covers every target row. The dev number above is out-of-fold: it's scored only on businesses the model didn't train on.
 

@@ -50,11 +50,11 @@ def oof(D,season):
         print(' fold',k,round(time.time()-t),flush=True)
     return P,byrow
 if __name__=="__main__":
-    D6,D5=pickle.load(open('/tmp/t403_D.pkl','rb'))
+    D6,D5=pickle.load(open('/tmp/fonecta_brain/D.pkl','rb'))
     P6,b6=oof(D6,2026); P5,b5=oof(D5,2025)
     s6=v2.sweep(D6,P6,b6,2026); s5=v2.sweep(D5,P5,b5,2025)
     r6=v2.evaluate(D6,P6,b6,{'closed':s5[0][1],'open':s5[0][2]},2026)
     r5=v2.evaluate(D5,P5,b5,{'closed':s6[0][1],'open':s6[0][2]},2025)
     print('v3 2026 OOF (thr from 2025):',r6['score_0_100'],r6['precision_exact'],r6['recall_exact'],r6['harmful_suggestions'],'| 2025 OOF:',r5['score_0_100'],'| in-sample best',s6[0][:3],s5[0][:3],flush=True)
     print(r6['breakdown'])
-    pickle.dump((P6,b6,P5,b5),open(f"/tmp/t403_oof_{os.environ.get('TAG','v3')}.pkl",'wb'))
+    pickle.dump((P6,b6,P5,b5),open(f"/tmp/fonecta_brain/oof_{os.environ.get('TAG','v3')}.pkl",'wb'))

@@ -1,12 +1,12 @@
 import pickle,sys,os,numpy as np,collections
 import v2
-D6,D5=pickle.load(open('/tmp/t403_D.pkl','rb'))
+D6,D5=pickle.load(open('/tmp/fonecta_brain/D.pkl','rb'))
 tags=sys.argv[1].split(',')
 FLAGQ=float(os.environ.get('FLAGQ','-1'))
 def load(tags):
     Ps6=[];Ps5=[];B6=collections.defaultdict(lambda:collections.defaultdict(list));B5=collections.defaultdict(lambda:collections.defaultdict(list))
     for t in tags:
-        P6,b6,P5,b5=pickle.load(open(f'/tmp/t403_oof_{t}.pkl','rb')); Ps6.append(P6);Ps5.append(P5)
+        P6,b6,P5,b5=pickle.load(open(f'/tmp/fonecta_brain/oof_{t}.pkl','rb')); Ps6.append(P6);Ps5.append(P5)
         for B,b in ((B6,b6),(B5,b5)):
             for i,l in b.items():
                 for e,h in l: B[i][h].append(e)

@@ -5,14 +5,14 @@ sys.path.insert(0,KIT+'/evaluation'); import evaluate as E
 from sklearn.model_selection import GroupKFold
 LP={2026:os.path.join(KIT,'labels','dev_labels_2026.csv'),2025:os.path.join(KIT,'labels','dev_labels_2025_backtest.csv')}
 def load(s):
-    X,meta=pickle.load(open(f'/tmp/t403_X{s}.pkl','rb'))
+    X,meta=pickle.load(open(f'/tmp/fonecta_brain/X{s}.pkl','rb'))
     if os.environ.get('XF','1')=='1':
         import pandas as pd
-        Xe=pickle.load(open(f'/tmp/t403_Xe{s}.pkl','rb')); X=pd.concat([X.reset_index(drop=True),Xe],axis=1)
-        if os.path.exists(f'/tmp/t403_Xa{s}.pkl') and os.environ.get('XA','1')=='1':
-            X=pd.concat([X,pickle.load(open(f'/tmp/t403_Xa{s}.pkl','rb'))],axis=1)
-        if os.path.exists(f'/tmp/t403_Xb{s}.pkl') and os.environ.get('XB','1')=='1':
-            F,C=pickle.load(open(f'/tmp/t403_Xb{s}.pkl','rb')); X=pd.concat([X,F],axis=1)
+        Xe=pickle.load(open(f'/tmp/fonecta_brain/Xe{s}.pkl','rb')); X=pd.concat([X.reset_index(drop=True),Xe],axis=1)
+        if os.path.exists(f'/tmp/fonecta_brain/Xa{s}.pkl') and os.environ.get('XA','1')=='1':
+            X=pd.concat([X,pickle.load(open(f'/tmp/fonecta_brain/Xa{s}.pkl','rb'))],axis=1)
+        if os.path.exists(f'/tmp/fonecta_brain/Xb{s}.pkl') and os.environ.get('XB','1')=='1':
+            F,C=pickle.load(open(f'/tmp/fonecta_brain/Xb{s}.pkl','rb')); X=pd.concat([X,F],axis=1)
             for m,c in zip(meta,C): m['cands'].update(c)
         add_rev_cands(X,meta)
     L=M.labels(s)

@@ -11,7 +11,7 @@ thr={'closed':float(os.environ["THR_CLOSED"]),'open':float(os.environ["THR_OPEN"
 B={"max_iter":300,"learning_rate":0.06,"max_leaf_nodes":31}
 C={"max_iter":800,"learning_rate":0.03,"max_leaf_nodes":63,"min_samples_leaf":30}
 KW=dict(categorical_features="from_dtype",random_state=0)
-D6,_=pickle.load(open('/tmp/t403_D.pkl','rb'))
+D6,_=pickle.load(open('/tmp/fonecta_brain/D.pkl','rb'))
 X,meta,L,dev=H.load(2026)
 allidx=list(range(len(meta)))
 y=D6['y']; gdev=np.array([meta[i]['entity_id'] for i in dev])

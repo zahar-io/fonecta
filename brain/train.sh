@@ -1,13 +1,13 @@
 #!/bin/bash
 # Rebuilds the v2.2 brain (dev 65.1 / back-test 63.0) and predictions_2026.csv from Fonecta's kit.
 # Usage, from the repo root:  FONECTA_KIT=/path/to/FONECTA_CONNECT_SUGGESTS_2026 bash brain/train.sh
-# Intermediate caches go to /tmp/t403_*.pkl. Needs a few GB of RAM.
+# Intermediate caches go to /tmp/fonecta_brain/. Needs a few GB of RAM.
 set -eo pipefail
 : "${FONECTA_KIT:?set FONECTA_KIT to the starter kit folder}"
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 PY=${PYTHON:-$ROOT/.venv/bin/python}
 export LOKY_MAX_CPU_COUNT=${LOKY_MAX_CPU_COUNT:-4}
-cd "$ROOT/brain"
+cd "$ROOT/brain"; mkdir -p /tmp/fonecta_brain
 echo "[1/4] v1 features (model.py) and caches"; $PY model.py >/dev/null
 $PY cache.py; $PY cache2.py; $PY cache3.py; $PY cache4.py
 echo "[2/4] three calibrated models, out-of-fold"

@@ -54,7 +54,6 @@ Settings come only from env vars: `YEXT_BASE_URL` (`https://sbx-api.yextapis.com
 - **Live events:** "stay open later?" questions from Helsinki LinkedEvents (live). See below.
 - **Listing preview:** after approving, the owner sees how their special hours will show, labelled as a preview.
 - **WhatsApp:** one message per decision (back-to-back days or one event share a message) with a header card; **Edit happens in the chat**: the owner types "8-14" / "10am-4pm" / "closed", Connect confirms, and nothing is saved before the Save tap. Interactive buttons inside the 24 h window, a template mode for business-initiated messages, and a webhook. See [docs/WHATSAPP.md](docs/WHATSAPP.md).
-- **Demo recorder:** `demo/record.py` drives the real app with Playwright, so the demo video shows nothing that doesn't run.
 
 ## Suggestion quality (Fonecta's scorer)
 
@@ -102,7 +101,7 @@ See [docs/MESSAGES.md](docs/MESSAGES.md): verbatim output for fi/sv/nb/en, inclu
 | FastAPI, Starlette, Uvicorn, Pydantic | MIT / BSD-3 |
 | pandas, NumPy, scikit-learn, PyArrow | BSD-3 / Apache-2.0 |
 | python-multipart, eval_type_backport | Apache-2.0 / MIT |
-| Playwright (demo recorder only), Pillow | Apache-2.0 / MIT-CMU |
+| Pillow | MIT-CMU |
 | aiortc, PyAV (WhatsApp voice call) | BSD-3-Clause; PyAV wheels bundle FFmpeg under LGPL (not GPL) |
 | Helsinki LinkedEvents data | CC BY 4.0 |
 

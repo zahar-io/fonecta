@@ -1,6 +1,6 @@
 """Light AI for free-text owner requests ("open an hour later than usual on Friday").
 
-A small Gemini model (GEMINI_MODEL, default gemini-3.5-flash-lite) turns the message into
+Claude Haiku via the team seat (claude -p; Gemini flash-lite as fallback) turns the message into
 {dates, hours} as JSON. Its answer is never trusted blindly: dates must be real and within a year, hours must pass
 the same validator as everything else, and the owner still confirms with Save. If the model is off or unsure, the
 rule-based parser in chat_edit takes over. Only the message text, today's date and the business's regular hours are sent.
@@ -26,16 +26,30 @@ Message: {msg}"""
 
 
 def enabled() -> bool:
-    return bool(os.environ.get("GEMINI_KEY")) and os.environ.get("NLU", "1") == "1"
+    return os.environ.get("NLU", "1") == "1"
 
 
-def parse(msg: str, today: date, regular: dict) -> tuple:
-    """-> (dates or None, hours or None). Never raises."""
-    if not enabled():
-        return None, None
-    reg = ", ".join(f"{d}: {regular.get(d) or '?'}" for d in DAYS)
-    body = {"contents": [{"parts": [{"text": PROMPT.format(today=today.isoformat(), wd=DAYS[today.weekday()],
-                                                           regular=reg, msg=msg[:500])}]}],
+def _ask_claude(prompt: str) -> str | None:
+    """Haiku through the team's Claude Code seat (claude -p): no API bill. Runs in /tmp with no tools."""
+    import shutil
+    import subprocess
+    exe = os.environ.get("CLAUDE_BIN") or shutil.which("claude") or os.path.expanduser("~/.local/bin/claude")
+    try:
+        r = subprocess.run([exe, "-p", "--model", os.environ.get("CLAUDE_NLU_MODEL", "haiku")], input=prompt,
+                           capture_output=True, text=True, timeout=25, cwd="/tmp")
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    out = (r.stdout or "").strip()
+    if out.startswith("```"):
+        out = out.strip("`").split("\n", 1)[-1]
+    i, j = out.find("{"), out.rfind("}")
+    return out[i:j + 1] if i >= 0 and j > i else None
+
+
+def _ask_gemini(prompt: str) -> str | None:
+    if not os.environ.get("GEMINI_KEY"):
+        return None
+    body = {"contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {"temperature": 0, "responseMimeType": "application/json"}}
     model = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash-lite")
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
@@ -43,10 +57,25 @@ def parse(msg: str, today: date, regular: dict) -> tuple:
                                  headers={"Content-Type": "application/json", "x-goog-api-key": os.environ["GEMINI_KEY"]})
     try:
         with urllib.request.urlopen(req, timeout=12) as r:
-            out = json.load(r)
-        text = out["candidates"][0]["content"]["parts"][0]["text"]
-        j = json.loads(text)
+            return json.load(r)["candidates"][0]["content"]["parts"][0]["text"]
     except Exception:
+        return None
+
+
+def parse(msg: str, today: date, regular: dict) -> tuple:
+    """-> (dates or None, hours or None). Never raises."""
+    if not enabled():
+        return None, None
+    reg = ", ".join(f"{d}: {regular.get(d) or '?'}" for d in DAYS)
+    prompt = PROMPT.format(today=today.isoformat(), wd=DAYS[today.weekday()], regular=reg, msg=msg[:500])
+    text = None
+    for backend in (os.environ.get("NLU_BACKEND", "claude,gemini")).split(","):
+        text = _ask_claude(prompt) if backend.strip() == "claude" else _ask_gemini(prompt)
+        if text:
+            break
+    try:
+        j = json.loads(text or "")
+    except ValueError:
         return None, None
     dates = []
     for d in (j.get("dates") or [])[:7]:

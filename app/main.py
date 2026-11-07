@@ -483,7 +483,30 @@ async def wa_hook(request: Request):
             _request_button(frm, bid)
     for frm, text in channels.parse_texts(payload):
         _edit_text(frm, text)
+    for frm, media in channels.parse_audio(payload):
+        _voice(frm, media)
     return {"ok": True}
+
+
+HEARD = {"en": "🎙️ Heard: “{t}”", "fi": "🎙️ Kuulin: ”{t}”", "sv": "🎙️ Jag hörde: ”{t}”", "nb": "🎙️ Jeg hørte: «{t}»"}
+UNHEARD = {"en": "Sorry, I couldn't make out that voice message. Could you type it?",
+           "fi": "En saanut ääniviestistä selvää. Voisitko kirjoittaa sen?",
+           "sv": "Jag kunde inte höra röstmeddelandet. Kan du skriva det?",
+           "nb": "Jeg fikk ikke med meg talemeldingen. Kan du skrive den?"}
+
+
+def _voice(frm, media_id):
+    from . import voice
+    c = _owner_case(frm)
+    lang = c["lang"] if c else "en"
+    audio = voice.download(media_id)
+    text = voice.transcribe(audio, "auto" if lang != "en" else "en") if audio else None
+    if c:
+        m = HEARD[lang].format(t=text) if text else UNHEARD[lang]
+        _log(c, "voice heard", m, _wa().send_text(frm, m))
+        eng().save()
+    if text:
+        _edit_text(frm, text)
 
 
 def _edit_state():

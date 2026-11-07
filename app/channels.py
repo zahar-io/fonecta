@@ -178,6 +178,17 @@ def parse_texts(payload: dict) -> list:
     return out
 
 
+def parse_audio(payload: dict) -> list:
+    """WhatsApp webhook -> [(from, media_id)] for voice notes / audio."""
+    out = []
+    for entry in payload.get("entry", []) or []:
+        for ch in entry.get("changes", []) or []:
+            for m in (ch.get("value") or {}).get("messages", []) or []:
+                if m.get("type") == "audio" and (m.get("audio") or {}).get("id"):
+                    out.append((m.get("from"), m["audio"]["id"]))
+    return out
+
+
 def channel_for(preferred: str, force_preview: bool = False) -> Channel:
     """Preferred channel WhatsApp + configured -> real WhatsApp; everything else -> preview of that channel."""
     if not force_preview and preferred == "WHATSAPP" and wa_configured():

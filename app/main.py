@@ -1,4 +1,5 @@
-"""Web layer: Fonecta ops console (/), the owner's no-login decision page (/s/<link>) and the WhatsApp webhook.
+"""Web layer: Fonecta ops console (/), the presenter view (/demo), the decision log (/log) and the WhatsApp webhook.
+Owners never log in and never open a page: they decide in WhatsApp (buttons, chat, voice notes).
 
 Run:  .venv/bin/python -m uvicorn app.main:app --port 8800
 """
@@ -9,12 +10,12 @@ import re
 import json
 import os
 
-from fastapi import FastAPI, Form, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 
 from . import channels, config, links, messages
 from .engine import Engine, NotAllowed
-from .hours import is_valid, nice
+from .hours import nice
 
 app = FastAPI(title="Connect Suggests – Flovr")
 ENGINE: Engine | None = None
@@ -22,12 +23,12 @@ from .demo import router as demo_router  # noqa: E402
 app.include_router(demo_router)
 from .decision_log import router as log_router  # noqa: E402
 app.include_router(log_router)
-PUBLIC_PREFIXES = ("/s/", "/r/", "/webhook/")
+PUBLIC_PREFIXES = ("/webhook/",)
 
 
 @app.middleware("http")
 async def console_gate(request: Request, call_next):
-    """When exposed through a tunnel, only owner links and the webhook are public; the console needs ?k=<key> once."""
+    """When exposed through a tunnel, only the webhook is public; the console needs ?k=<key> once."""
     key = os.environ.get("APP_CONSOLE_KEY")
     path = request.url.path
     if key and not path.startswith(PUBLIC_PREFIXES):
@@ -76,35 +77,6 @@ def page(title: str, body: str, owner: bool = False) -> HTMLResponse:
                         f"<style>{CSS}</style></head><body>{head}<main>{body}</main></body></html>")
 
 
-# ------------------------------------------------------------------ "how it will look" card (preview, not a screenshot)
-PREVIEW = {"fi": ("Esikatselu: näin ilmoituksenne näkyy hauissa", "Kiinni", "Auki", "Erikoisaukioloajat"),
-           "sv": ("Förhandsvisning: så här visas er profil i sökningar", "Stängt", "Öppet", "Avvikande öppettider"),
-           "nb": ("Forhåndsvisning: slik vises oppføringen i søk", "Stengt", "Åpent", "Spesielle åpningstider"),
-           "en": ("Preview: how your listing will show in search", "Closed", "Open", "Special hours")}
-
-
-def maps_card(c: dict, applied: list) -> str:
-    from datetime import date as _d
-    lang = c["lang"] if c["lang"] in PREVIEW else "en"
-    title, closed_w, open_w, special = PREVIEW[lang]
-    ent = __import__("app.kitdata", fromlist=["entities"]).entities().get(c["entity_id"]) or {}
-    addr = ", ".join(x for x in ((ent.get("address") or {}).get("line1"), c.get("city")) if x)
-    rows = ""
-    for a in sorted(applied, key=lambda a: a["date"])[:5]:
-        d = _d.fromisoformat(a["date"])
-        h = a.get("final_hours") or a.get("hours")
-        st = (f"<b style='color:#d93025'>{closed_w}</b>" if h == "closed"
-              else f"<b style='color:#188038'>{open_w}</b> {E(nice(h))}")
-        rows += (f"<div style='display:flex;justify-content:space-between;padding:3px 0'>"
-                 f"<span>{E(messages.day_name(a, lang, a.get('event_name')))} {E(messages.dm(d, lang))}</span>"
-                 f"<span>{st}</span></div>")
-    return (f"<div class=card style='max-width:380px;border:1px solid #dadce0;box-shadow:none'>"
-            f"<div class=muted style='margin-bottom:6px'>{E(title)}</div>"
-            f"<div style='font-size:20px'>{E(c['name'])}</div>"
-            f"<div class=muted>{E(str(c.get('segment') or '').replace('_', ' ').title())} · {E(addr)}</div>"
-            f"<div style='margin-top:8px;font-size:13px'><div class=muted>{E(special)}</div>{rows}</div></div>")
-
-
 # ------------------------------------------------------------------ console
 def item_row(it: dict, lang="en") -> str:
     rs = "".join(f"<li>{E(r)}</li>" for r in it.get("reasons") or [])
@@ -141,7 +113,7 @@ def review_block(e, eid: str) -> str:
     if not rc:
         return f"<div id=rev-{E(eid)} style='margin-top:6px'>{btn}</div>"
     msg = rc.get("message", "")
-    lk = f" <a class='btn s' target=_blank href='/r/{E(rc['link'])}'>Owner's review page</a>" if rc.get("link") else ""
+    lk = ""
     return (f"<div id=rev-{E(eid)} class=card style='background:#faf9fd'>{btn}{lk} <span class='tag'>{E(rc.get('status', ''))}</span>"
             f"<pre style='margin-top:6px'>{E(msg)}</pre><div class=muted>{E(rc.get('weekly', ''))}</div>"
             f"{'<div class=muted>' + E(rc.get('result', '')) + '</div>' if rc.get('result') else ''}</div>")
@@ -171,8 +143,6 @@ def console():
         if c["status"] == "sent" and not c.get("called"):
             acts += (f"<form method=post action=/api/call/{E(c['id'])} style='display:inline'>"
                      f"<button class='btn g'>Urgent: call the owner</button></form>")
-        if c.get("token"):
-            acts += f"<a class='btn s' target=_blank href='/s/{E(c['token'])}'>4 · Owner's page</a>"
         learned = "".join(f"<li>{E(x)}</li>" for x in e.learning.summary(c["entity_id"]))
         rows.append(
             f"<div class=card id='case-{E(c['entity_id'])}'><div style='display:flex;gap:18px;flex-wrap:wrap'><div style='flex:1;min-width:600px'>"
@@ -253,119 +223,6 @@ def load_link(link: str) -> tuple:
         raise HTTPException(404, "This suggestion no longer exists.")
 
 
-T = {
-    "fi": ("Hyväksy", "Muokkaa", "Ei kiitos", "Hoida pyhäpäivien aukioloajat puolestani jatkossa (ilmoitamme aina)",
-           "Tallenna", "kiinni"),
-    "sv": ("Godkänn", "Ändra", "Nej tack", "Sköt helgdagarnas öppettider åt mig framöver (vi meddelar alltid)",
-           "Spara", "stängt"),
-    "nb": ("Godkjenn", "Endre", "Nei takk", "Ta deg av åpningstidene på helligdager for meg fremover (vi gir alltid beskjed)",
-           "Lagre", "stengt"),
-    "en": ("Approve", "Edit", "No thanks", "Handle public holidays for me from now on (we'll always tell you)",
-           "Save", "closed"),
-}
-CHIPS = {
-    "fi": {"open_as_usual": "Olemme auki normaalisti", "different_hours": "Eri aukioloajat", "not_this_year": "Ei tänä vuonna"},
-    "sv": {"open_as_usual": "Vi har öppet som vanligt", "different_hours": "Andra öppettider", "not_this_year": "Inte i år"},
-    "nb": {"open_as_usual": "Vi har åpent som vanlig", "different_hours": "Andre åpningstider", "not_this_year": "Ikke i år"},
-    "en": {"open_as_usual": "We're open as usual", "different_hours": "Different hours", "not_this_year": "Not this year"},
-}
-WHY = {"fi": "Miksi ei? (vapaaehtoinen, auttaa meitä ehdottamaan paremmin)",
-       "sv": "Varför inte? (frivilligt, hjälper oss att föreslå bättre)",
-       "nb": "Hvorfor ikke? (valgfritt, hjelper oss å foreslå bedre)",
-       "en": "Why not? (optional, helps us suggest better)"}
-THANKS = {"fi": "Kiitos, merkitty. Muistamme tämän ensi kerralla.", "sv": "Tack, noterat. Vi minns det till nästa gång.",
-          "nb": "Takk, notert. Vi husker det til neste gang.", "en": "Thanks, noted. We'll remember this next time."}
-
-
-def times(h: str) -> tuple:
-    if not h or h == "closed":
-        return "", ""
-    return h.split(",")[0][:5], h.split(",")[-1][-5:]
-
-
-@app.get("/s/{link}", response_class=HTMLResponse)
-def owner_page(link: str):
-    body, c = load_link(link)
-    lang = c["lang"]
-    ap, ed, no, perm, save, closed = T.get(lang, T["en"])
-    if body.get("u"):
-        return page("Undo", f"<div class=card><pre>{E((c.get('outbox') or [{}])[-1].get('text', ''))}</pre>"
-                            f"<form method=post action='/s/{E(link)}/undo'><button class='btn g'>Undo this change</button></form></div>", True)
-    open_items = [i for i in c["items"] if i["status"] in ("pending", "sent") and i["action"] == "SUGGEST"
-                  and (not (body.get("ds") or body.get("d")) or i["date"] in (body.get("ds") or [body.get("d")]))]
-    if not open_items:
-        last = (c.get("outbox") or [{}])[-1].get("text", "")
-        return page("Done", f"<div class=card><h3>{E(c['name'])}</h3><pre>{E(last)}</pre></div>", True)
-    msg = messages.compose(eng().ctx(c), open_items, f"{config.public_base()}/s/{link}")
-    rows = ""
-    for it in sorted(open_items, key=lambda i: i["date"]):
-        o, cl = times(it["hours"])
-        d = it["date"]
-        rows += (f"<div class=card><b>{E(messages.bullet(it, lang))}</b>"
-                 f"<div style='margin-top:6px'>"
-                 f"<label><input type=radio name='a_{d}' value=approve checked> {ap}</label> &nbsp;"
-                 f"<label><input type=radio name='a_{d}' value=edit> {ed}</label> &nbsp;"
-                 f"<label><input type=radio name='a_{d}' value=decline> {no}</label></div>"
-                 f"<div class=muted style='margin-top:6px'>{ed}: <input type=time name='o_{d}' value='{o}'> – "
-                 f"<input type=time name='c_{d}' value='{cl}'> <label><input type=checkbox name='x_{d}' "
-                 f"{'checked' if it['hours'] == 'closed' else ''}> {closed}</label></div></div>")
-    html_ = (f"<div class=card><pre>{E(msg['body'])}</pre></div><form method=post action='/s/{E(link)}'>{rows}"
-             f"<div class=card><label><input type=checkbox name=perm> {E(perm)}</label></div>"
-             f"<button class='btn p' style='font-size:16px;padding:12px 20px'>{save}</button></form>")
-    return page(c["name"], html_, True)
-
-
-@app.post("/s/{link}", response_class=HTMLResponse)
-async def owner_decide(link: str, request: Request):
-    _, c = load_link(link)
-    form = await request.form()
-    decs = {}
-    for it in c["items"]:
-        d = it["date"]
-        a = form.get(f"a_{d}")
-        if not a:
-            continue
-        if a == "edit":
-            if form.get(f"x_{d}"):
-                h = "closed"
-            else:
-                h = f"{form.get(f'o_{d}', '')}-{form.get(f'c_{d}', '')}"
-            if not is_valid(h):
-                raise HTTPException(400, f"Please check the hours for {d}.")
-            decs[d] = {"action": "edit", "hours": h}
-        else:
-            decs[d] = {"action": a}
-    out = eng().decide(c["id"], decs, permission=bool(form.get("perm")), channel="page")
-    chips = ""
-    if out.get("declined"):
-        lang = c["lang"] if c["lang"] in CHIPS else "en"
-        chips = f"<div class=card><b>{E(WHY[lang])}</b><br>" + "".join(
-            f"<form method=post action='/s/{E(link)}/reason' style='display:inline'><input type=hidden name=r value={k}>"
-            f"<button class='btn s'>{E(v)}</button></form>" for k, v in CHIPS[lang].items()) + "</div>"
-    card = ""
-    if out.get("applied"):
-        it = {i["date"]: i for i in c["items"]}
-        card = maps_card(c, [dict(it.get(a["date"], {}), **a) for a in out["applied"]])
-    return page("Thanks", f"<div class=card><pre>{E(out.get('confirmation', ''))}</pre></div>{card}{chips}", True)
-
-
-@app.post("/s/{link}/reason", response_class=HTMLResponse)
-def owner_reason(link: str, r: str = Form(...)):
-    _, c = load_link(link)
-    if r in CHIPS["en"]:
-        eng().decline_reason(c["id"], r)
-    return page("Thanks", f"<div class=card>{E(THANKS.get(c['lang'], THANKS['en']))}</div>", True)
-
-
-@app.post("/s/{link}/undo", response_class=HTMLResponse)
-def owner_undo(link: str):
-    body, c = load_link(link)
-    if not body.get("u"):
-        raise HTTPException(403, "Not an undo link.")
-    out = eng().undo(c["id"])
-    return page("Undone", f"<div class=card><pre>{E(out.get('confirmation', 'Nothing to undo.'))}</pre></div>", True)
-
-
 # ------------------------------------------------------------------ reviews: same loop, second use case
 def _reviews_for(eid):
     import json as _j
@@ -377,7 +234,7 @@ def _reviews_for(eid):
 
 @app.post("/api/reviews/{eid}")
 def api_reviews(eid: str):
-    """Newest unanswered bad review -> draft reply -> owner message; plus the weekly summary of good ones."""
+    """Newest unanswered bad review -> draft reply -> owner message; plus the weekly general summary."""
     from datetime import datetime as _dt
     from . import reviews as rv
     e = eng()
@@ -390,57 +247,12 @@ def api_reviews(eid: str):
     out = {"entity_id": eid, "name": name, "lang": lang, "created_at": e.learning and __import__("app.learning", fromlist=["now_iso"]).now_iso()}
     if bad:
         d = rv.draft_reply(bad, name, lang)
-        link = links.sign({"r": eid, "id": bad["id"]})
-        out.update(review=bad, draft=d, link=link, status="sent",
-                   message=rv.owner_message(bad, d, lang) + f"\n{config.public_base()}/r/{link}")
+        out.update(review=bad, draft=d, status="sent", message=rv.owner_message(bad, d, lang))
     if rs:
         out["weekly"] = rv.weekly_summary(rs, lang, snap)
     e.state.setdefault("reviews", {})[eid] = out
     e.save()
     return RedirectResponse("/#rev-" + eid, 303)
-
-
-def _review_case(link):
-    try:
-        body = links.verify(link)
-        return body, eng().state["reviews"][body["r"]]
-    except Exception:
-        raise HTTPException(403, "This link has expired or isn't valid.")
-
-
-@app.get("/r/{link}", response_class=HTMLResponse)
-def review_page(link: str):
-    _, rc = _review_case(link)
-    r = rc["review"]
-    if rc["status"] != "sent":
-        return page("Done", f"<div class=card>{E(rc.get('result', rc['status']))}</div>", True)
-    return page(rc["name"], f"<div class=card><b>{'★' * int(r.get('rating') or 0)}</b> "
-                f"<span class=muted>{E(r.get('authorName', ''))} · {E(r.get('publisherId', ''))}</span>"
-                f"<p>{E(r.get('content', ''))}</p></div><form method=post action='/r/{E(link)}'><div class=card>"
-                f"<textarea name=reply rows=6 style='width:100%;font:inherit'>{E(rc['draft']['reply'])}</textarea></div>"
-                f"<button class='btn p' name=a value=post>Post / Julkaise</button>"
-                f"<button class='btn g' name=a value=skip>Skip / Ohita</button></form>", True)
-
-
-@app.post("/r/{link}", response_class=HTMLResponse)
-def review_decide(link: str, a: str = Form(...), reply: str = Form("")):
-    body, rc = _review_case(link)
-    e = eng()
-    if rc["status"] != "sent":
-        raise HTTPException(409, "Already handled.")
-    if a == "post" and reply.strip():
-        try:  # Yext Reviews API: POST /reviews/{id}/comments (the kit mock doesn't implement it)
-            e.yext._req("POST", f"reviews/{body['id']}/comments", body={"content": reply.strip(), "visibility": "PUBLIC"})
-            rc["result"] = "Reply posted via the Yext Reviews API."
-        except Exception as ex:
-            rc["result"] = f"Reply approved and stored; the Yext mock has no review-comment endpoint ({str(ex)[:60]})."
-        rc["status"], rc["final_reply"] = ("edited" if reply.strip() != rc["draft"]["reply"] else "approved"), reply.strip()
-    else:
-        rc["status"], rc["result"] = "skipped", "Skipped. Nothing was posted."
-    e.learning.record({"entity_id": rc["entity_id"], "type": "review reply", "review_id": body["id"],
-                       "decision": rc["status"], "draft": rc["draft"]["reply"], "final": rc.get("final_reply")})
-    e.save()
-    return page("Done", f"<div class=card>{E(rc['result'])}</div>", True)
 
 
 # ------------------------------------------------------------------ live review monitor
@@ -743,6 +555,9 @@ async def wa_hook(request: Request):
                 eng().decide(c["id"], {d: {"action": act} for d in ds}, channel="whatsapp")
             else:
                 eng().decide_all(c["id"], act, channel="whatsapp")
+        elif kind == "u":  # Undo under a "we handled it for you" message
+            if body.get("u"):
+                eng().undo(c["id"], channel="whatsapp")
         elif kind == "e":  # start an edit conversation in the chat, one date at a time
             ds = body.get("ds") or ([body["d"]] if body.get("d") else
                                     [i["date"] for i in c["items"] if i["status"] == "sent"])

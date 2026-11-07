@@ -4,17 +4,12 @@ Rule (Engine.urgent_call): a sent suggestion whose first date is within URGENT_W
 no answer for URGENT_AFTER_H (default 4 h) -> one call. The call explains the suggestion and points to the message
 already on the phone: the owner still decides with a tap. A call never approves anything by itself.
 
-Transports
-* zahar-caller: Flovr's existing voice agent (a separate, pre-existing service, not part of this repo) over its local
-  socket ~/.zahar/caller.sock. It only calls allowlisted numbers, so in the demo the "owner" is a team member's phone.
-  Enabled with CALL_TRANSPORT=zahar-caller and CALL_TO_ID=<the callee id the service knows>.
-* preview (default): nothing is dialled; the console shows the call script.
+Channel: WhatsApp only. A real WhatsApp voice call (Cloud API Calling, app/wa_call.py) that speaks the message,
+after the owner granted call permission. If the call can't be placed, the same words go as a WhatsApp voice note.
 """
 from __future__ import annotations
 
-import json
 import os
-import socket
 
 SCRIPT = {
     "fi": "Hei {first}, täällä Fonecta Connectin avustaja, olen tekoäly. Soitan, koska {name} näkyy Googlessa väärillä "
@@ -55,41 +50,14 @@ def script(lang: str, **kw) -> str:
 
 
 def place(text: str, why: str, to: str | None = None) -> dict:
-    mode = os.environ.get("CALL_TRANSPORT", "preview")
-    if mode == "wa-call":  # a real WhatsApp voice call that speaks the message; falls back to a voice note
-        from . import wa_call
-        r = wa_call.start_call(os.environ.get("WA_TO") or to or "", text)
-        if r.get("ok"):
-            return {"ok": True, "transport": "wa-call", "dialled": True, "call_id": r.get("call_id")}
-        from .channels import WhatsAppCloudChannel
-        v = WhatsAppCloudChannel().send_voice(to, text)
-        return {"ok": v.get("ok"), "transport": "wa-voice (call failed)", "dialled": False,
-                "error": str(r.get("error"))[:300]}
-    if mode == "wa-voice":  # WhatsApp voice message (spoken nudge) on the same chat as the suggestion
-        from .channels import WhatsAppCloudChannel
-        r = WhatsAppCloudChannel().send_voice(to, text)
-        return {"ok": r.get("ok"), "transport": "wa-voice", "dialled": False, "error": r.get("error")}
-    if mode != "zahar-caller":
-        return {"ok": True, "transport": "preview", "dialled": False, "script": text}
-    sock = os.path.expanduser(os.environ.get("CALL_SOCKET", "~/.zahar/caller.sock"))
-    to_id = int(os.environ.get("CALL_TO_ID", "0") or 0)
-    if not to_id:
-        return {"ok": False, "transport": "zahar-caller", "error": "CALL_TO_ID not set"}
-    req = {"op": "call", "to_id": to_id, "urgent": True, "manual": True, "trigger": "connect-suggests",
-           "requested_by": "connect-suggests demo", "why": why, "speech": text}
-    try:
-        with socket.socket(socket.AF_UNIX) as s:
-            s.settimeout(float(os.environ.get("CALL_TIMEOUT", "600")))
-            s.connect(sock)
-            s.sendall((json.dumps(req) + "\n").encode())
-            buf = b""
-            while not buf.endswith(b"\n"):
-                chunk = s.recv(65536)
-                if not chunk:
-                    break
-                buf += chunk
-        res = json.loads(buf or b"{}")
-        return {"ok": bool(res.get("ok", True)), "transport": "zahar-caller", "dialled": True,
-                "outcome": res.get("outcome"), "duration_s": res.get("duration_s"), "error": res.get("error")}
-    except OSError as ex:
-        return {"ok": False, "transport": "zahar-caller", "error": str(ex)}
+    """`why` is kept for the audit trail by the caller; the call itself only needs the words and the number."""
+    to = os.environ.get("WA_TO") or to or ""
+    if not (os.environ.get("WA_TOKEN") and os.environ.get("WA_PHONE_NUMBER_ID") and to):
+        return {"ok": False, "transport": "wa-call", "dialled": False, "error": "WhatsApp not configured"}
+    from . import wa_call
+    r = wa_call.start_call(to, text)
+    if r.get("ok"):
+        return {"ok": True, "transport": "wa-call", "dialled": True, "call_id": r.get("call_id")}
+    from .channels import WhatsAppCloudChannel
+    v = WhatsAppCloudChannel().send_voice(to, text)
+    return {"ok": v.get("ok"), "transport": "wa-voice (call failed)", "dialled": False, "error": str(r.get("error"))[:300]}

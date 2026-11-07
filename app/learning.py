@@ -120,7 +120,7 @@ class Learning:
     def permission_source(self, eid: str) -> str | None:
         p = self.data["prefs"].get(eid, {})
         if p.get("permission"):
-            return f"granted by the owner on the decision page ({p.get('permission_at', '')[:10]})"
+            return f"granted by the owner in the chat ({p.get('permission_at', '')[:10]})"
         if "permission" in p:
             return None
         c = kitdata.contacts().get(eid)

@@ -1,6 +1,6 @@
 # WhatsApp channel (Meta WhatsApp Cloud API)
 
-**What works now:** interactive messages with 3 reply buttons (Approve / Edit / No thanks), plain-text follow-ups, and a webhook (`/webhook/whatsapp`) that turns a button tap into the same decision as the no-login page.
+**What works now:** interactive messages with 3 reply buttons (Approve / Edit / No thanks), plain-text follow-ups, and a webhook (`/webhook/whatsapp`) that turns a button tap into a decision (approve, decline, edit in the chat, or undo). There are no owner web pages.
 
 ## Switch it on (demo)
 1. Meta developer app with the WhatsApp product (free test number, or our own number). Add the demo phones as recipients.

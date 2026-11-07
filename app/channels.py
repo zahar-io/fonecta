@@ -30,6 +30,10 @@ class Channel:
     def send_text(self, to: str, text: str) -> dict:
         raise NotImplementedError
 
+    def send_text_buttons(self, to: str, text: str, buttons: list) -> dict:
+        """buttons: [(id, title)]. Channels without buttons send the text alone (it says how to reply)."""
+        return self.send_text(to, text)
+
 
 class PreviewChannel(Channel):
     """Records what would be sent; the console renders it."""
@@ -86,9 +90,9 @@ class WhatsAppCloudChannel(Channel):
                                     "body": {"text": wa["body"]},
                                     "action": {"buttons": [{"type": "reply", "reply": {"id": bid, "title": title[:20]}}
                                                            for bid, title in list(zip(button_ids, msg["buttons"]))[:3]]}}}
-        body = msg["body"] + "\n\n" + msg["link_line"]
+        body = msg["body"]
         if len(body) > 1024:  # WhatsApp interactive body limit
-            body = msg["body"][: 1024 - len(msg["link_line"]) - 4].rstrip() + "…\n\n" + msg["link_line"]
+            body = body[:1023].rstrip() + "…"
         return {"messaging_product": "whatsapp", "recipient_type": "individual", "to": to, "type": "interactive",
                 "interactive": {"type": "button", "body": {"text": body},
                                 "action": {"buttons": [{"type": "reply", "reply": {"id": bid, "title": title[:20]}}
@@ -169,6 +173,9 @@ class WhatsAppCloudChannel(Channel):
                                              "action": {"buttons": [{"type": "reply", "reply": {"id": i, "title": t[:20]}}
                                                                     for i, t in buttons[:3]]}}})
         return {"ok": "error" not in r, "channel": "whatsapp", "error": r.get("error")}
+
+    def send_text_buttons(self, to, text, buttons):
+        return self.send_buttons(to, text, buttons)
 
     def send_text(self, to, text):
         if not wa_configured():

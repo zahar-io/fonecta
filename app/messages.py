@@ -75,7 +75,7 @@ T = {
         "value": "Yrityksenne tiedot nähtiin Googlen haussa ja kartoilla {views} kertaa viimeisen 30 päivän "
                  "aikana. Oikeat aukioloajat pitävät teidät mukana ”auki nyt” -hauissa.",
         "buttons": ("✅ Hyväksy", "✏️ Muokkaa", "❌ Ei kiitos"),
-        "link": "Hyväksy, muokkaa tai hylkää (ei kirjautumista): {url}",
+        "reply": "Vastaa OK tai 1 = hyväksy, 2 tai EI = ei kiitos, tai kirjoita aukioloajat (esim. 9-13).",
         "sign": "– Fonecta Connect",
         "subject": "{name}: tarkistetaanko pyhien aukioloajat?",
         "done": "Valmista! Uudet aukioloajat on tallennettu:", "done_edit": "Valmista! Tallensimme antamanne ajat:",
@@ -83,9 +83,8 @@ T = {
         "perm_on": "Jatkossa hoidamme pyhäpäivät puolestanne ja ilmoitamme vain jälkikäteen.",
         "declined": "Selvä, emme muuta mitään. Google näyttää edelleen nykyiset aukioloaikanne. Kiitos tiedosta, "
                     "muistamme tämän ensi kerralla!",
-        "edit_prompt": "Selvä! Aseta omat aikanne tästä (ei kirjautumista, vie 20 sekuntia): {url}",
         "auto": "Hei {first}! Kuten pyysitte, lisäsimme pyhäpäivien aukioloajat ({name}):",
-        "undo": "Eikö mennyt oikein? Peru yhdellä napautuksella: {url}",
+        "undo": "Eikö mennyt oikein? Napauta Peru alta.", "undo_sms": "Eikö mennyt oikein? Vastaa PERU.",
         "undone": "Peruttu. Aiemmat aukioloaikanne ovat taas voimassa.",
         "eta": ("min", "h", "pv", "pv"),
     },
@@ -120,7 +119,7 @@ T = {
         "value": "Er profil visades {views} gånger i Googles sök och kartor de senaste 30 dagarna. Rätt "
                  "öppettider håller er kvar i sökningar på ”öppet nu”.",
         "buttons": ("✅ Godkänn", "✏️ Ändra", "❌ Nej tack"),
-        "link": "Godkänn, ändra eller avböj (ingen inloggning): {url}",
+        "reply": "Svara OK eller 1 = godkänn, 2 eller NEJ = nej tack, eller skriv tiderna (t.ex. 9-13).",
         "sign": "– Fonecta Connect",
         "subject": "{name}: ska vi uppdatera helgtiderna?",
         "done": "Klart! De nya tiderna är sparade:", "done_edit": "Klart! Vi har sparat tiderna ni angav:",
@@ -128,9 +127,8 @@ T = {
         "perm_on": "Från och med nu sköter vi helgdagarna åt er och meddelar bara i efterhand.",
         "declined": "Okej, vi ändrar ingenting. Google fortsätter att visa era nuvarande tider. Tack för beskedet, "
                     "vi kommer ihåg det till nästa gång!",
-        "edit_prompt": "Absolut! Ställ in era egna tider här (ingen inloggning, tar 20 sekunder): {url}",
         "auto": "Hej {first}! Som ni bad om har vi lagt in helgtiderna för {name}:",
-        "undo": "Blev det fel? Ångra med ett tryck: {url}",
+        "undo": "Blev det fel? Tryck på Ångra nedan.", "undo_sms": "Blev det fel? Svara ÅNGRA.",
         "undone": "Ångrat. Era tidigare tider gäller igen.",
         "eta": ("min", "tim", "dag", "dagar"),
     },
@@ -165,7 +163,7 @@ T = {
         "value": "Profilen deres ble vist {views} ganger i Googles søk og kart de siste 30 dagene. Riktige "
                  "åpningstider holder dere med i søk på «åpent nå».",
         "buttons": ("✅ Godkjenn", "✏️ Endre", "❌ Nei takk"),
-        "link": "Godkjenn, endre eller avslå (uten innlogging): {url}",
+        "reply": "Svar OK eller 1 = godkjenn, 2 eller NEI = nei takk, eller skriv tidene (f.eks. 9-13).",
         "sign": "– Fonecta Connect",
         "subject": "{name}: skal vi oppdatere åpningstidene i høytiden?",
         "done": "Ferdig! De nye åpningstidene er lagret:", "done_edit": "Ferdig! Vi har lagret tidene dere la inn:",
@@ -173,9 +171,8 @@ T = {
         "perm_on": "Fra nå av ordner vi helligdagene for dere og gir bare beskjed etterpå.",
         "declined": "Greit, vi endrer ingenting. Google viser fortsatt de nåværende tidene deres. Takk for "
                     "beskjed, vi husker det til neste gang!",
-        "edit_prompt": "Selvsagt! Sett deres egne tider her (uten innlogging, tar 20 sekunder): {url}",
         "auto": "Hei {first}! Som dere ba om, har vi lagt inn helligdagstidene for {name}:",
-        "undo": "Ble det feil? Angre med ett trykk: {url}",
+        "undo": "Ble det feil? Trykk Angre nedenfor.", "undo_sms": "Ble det feil? Svar ANGRE.",
         "undone": "Angret. De tidligere tidene deres gjelder igjen.",
         "eta": ("min", "t", "dag", "dager"),
     },
@@ -210,7 +207,7 @@ T = {
         "value": "Your listing was seen {views} times on Google Search and Maps in the last 30 days. Correct "
                  "holiday hours keep you in “open now” results.",
         "buttons": ("✅ Approve", "✏️ Edit", "❌ No thanks"),
-        "link": "Approve, edit or decline (no login): {url}",
+        "reply": "Reply OK or 1 to approve, 2 or NO to decline, or write your hours (e.g. 9-13).",
         "sign": "– Fonecta Connect",
         "subject": "{name}: shall we update your holiday hours?",
         "done": "Done! Your new hours are saved:", "done_edit": "Done! We saved the hours you set:",
@@ -218,9 +215,8 @@ T = {
         "perm_on": "From now on we'll handle public holidays for you and just let you know.",
         "declined": "OK, we won't change anything. Google keeps showing your current hours. Thanks for letting "
                     "us know, we'll remember it next time!",
-        "edit_prompt": "Sure! Set your own hours here (no login, takes 20 seconds): {url}",
         "auto": "Hi {first}! As you asked, we've added the holiday hours for {name}:",
-        "undo": "Not right? Undo with one tap: {url}",
+        "undo": "Not right? Tap Undo below.", "undo_sms": "Not right? Reply UNDO.",
         "undone": "Undone. Your previous hours are back.",
         "eta": ("min", "h", "day", "days"),
     },
@@ -367,9 +363,10 @@ def live_list(listings: list, lang: str, limit: int = 5) -> str:
 
 
 # ------------------------------------------------------------------ the suggestion message
-def compose(ctx: dict, items: list, url: str) -> dict:
+def compose(ctx: dict, items: list) -> dict:
     """ctx: {lang, first, name, views (int|None), events {event_id: name}}; items: SUGGEST items with mode.
-    Returns {lang, subject, body, buttons, text (full plain text incl. link and [buttons])}."""
+    Returns {lang, subject, body, buttons, reply_line, text (plain text for SMS/email: body + how to reply)}.
+    No links: owners decide with buttons (WhatsApp, iMessage) or by replying (SMS)."""
     lang = lang_of(ctx.get("lang"))
     t = T[lang]
     ev_names = ctx.get("events") or {}
@@ -393,9 +390,9 @@ def compose(ctx: dict, items: list, url: str) -> dict:
         lines.extend(bullet(i, lang, ev_names.get(i.get("event_id"))) for i in items)
     body = "\n".join(lines[:1] + [""] + lines[1:])
     buttons = list(t["buttons"])
-    text = body + "\n" + " ".join(f"[{b}]" for b in buttons) + "\n" + t["link"].format(url=url) + "\n" + t["sign"]
+    text = body + "\n\n" + t["reply"] + "\n" + t["sign"]
     return {"lang": lang, "subject": t["subject"].format(name=ctx["name"]), "body": body, "buttons": buttons,
-            "link_line": t["link"].format(url=url), "text": text, "wa": wa_format(ctx, items, url)}
+            "reply_line": t["reply"], "text": text, "wa": wa_format(ctx, items)}
 
 
 # ------------------------------------------------------------------ WhatsApp formatting (*bold* _italic_ ~strike~)
@@ -417,7 +414,7 @@ def _why_short(it, lang):
     return s.rstrip(" .") + "."
 
 
-def wa_format(ctx: dict, items: list, url: str) -> dict:
+def wa_format(ctx: dict, items: list) -> dict:
     """WhatsApp-native, easy to scan: emoji markers, one line per fact, the reason in its own line, buttons below."""
     lang = lang_of(ctx.get("lang"))
     t = T[lang]
@@ -483,17 +480,18 @@ def declined(ctx: dict) -> str:
     return "👍 " + T[lang_of(ctx.get("lang"))]["declined"]
 
 
-def edit_prompt(ctx: dict, url: str) -> str:
-    return T[lang_of(ctx.get("lang"))]["edit_prompt"].format(url=url)
+def undo_label(lang: str) -> str:
+    return P[lang_of(lang)]["undo"]
 
 
-def auto_applied(ctx: dict, applied: list, listings: list, undo_url: str) -> str:
+def auto_applied(ctx: dict, applied: list, listings: list, by_text: bool = False) -> str:
+    """by_text: SMS has no buttons, so the owner replies UNDO; elsewhere an Undo button goes with the message."""
     lang = lang_of(ctx.get("lang"))
     t = T[lang]
     lines = [t["auto"].format(first=ctx["first"], name=ctx["name"])] + _applied_lines(applied, lang,
                                                                                        ctx.get("events"))
     lines += ["", "📍 " + t["live_on"].format(list=live_list(listings, lang))]
-    lines.append(t["undo"].format(url=undo_url))
+    lines.append(t["undo_sms"] if by_text else t["undo"])
     lines.append(t["sign"])
     return "\n".join(lines)
 

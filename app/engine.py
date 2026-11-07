@@ -1,7 +1,7 @@
 """The loop: 1 Detect -> 2 Suggest -> 3 Contact -> 4 Decide -> 5 Apply (+ standing permission, undo, learning).
 
 Nothing is written to Yext unless one of these authorities is present:
-  * owner_decision      - the owner approved or edited (decision page, WhatsApp button, simulator)
+  * owner_decision      - the owner approved or edited (WhatsApp button or chat, simulator)
   * standing_permission - the owner allowed "handle public holidays", the day is an official public holiday and
                           the suggestion is confident (>= 0.75); the owner is informed with a one-tap Undo
   * owner_undo          - the owner asked to undo an earlier change"""
@@ -296,9 +296,12 @@ class Engine:
         c["live"] = live
         undo = tokens.sign({"c": c["id"], "e": eid, "u": 1})
         c["undo_token"] = undo
+        ch = self._chan(c)
         text = messages.auto_applied(self.ctx(c), [dict(i, final_hours=i["hours"]) for i in todo], live,
-                                     f"{config.public_base()}/s/{undo}")
-        self._deliver_text(c, text, "inform (auto-applied)")
+                                     by_text=ch.name == "sms")
+        res = ch.send_text_buttons(c.get("to_phone"), text, [(f"u:{undo}", messages.undo_label(c["lang"]))])
+        c["outbox"].append({"at": now_iso(), "kind": "inform (auto-applied)", "channel": self._chan_name(c),
+                            "text": text, "result": res})
         for i in todo:
             self.learning.record({"entity_id": eid, "case_id": c["id"], "type": "auto-applied", "date": i["date"],
                                   "day_key": i["day_key"], "suggestion": i["hours"], "basis": i["basis"],
@@ -330,7 +333,7 @@ class Engine:
             return None
         tok = c.get("token") or tokens.sign({"c": c["id"], "e": c["entity_id"]})
         c["token"] = tok
-        return messages.compose(self.ctx(c), items, f"{config.public_base()}/s/{tok}")
+        return messages.compose(self.ctx(c), items)
 
     def send(self, cid: str, via: str | None = None) -> dict:
         with LOCK:
@@ -352,7 +355,7 @@ class Engine:
                 for grp in self.groups([i for i in c["items"] if i["status"] == "pending" and i["action"] == "SUGGEST"]):
                     ds = [i["date"] for i in grp]
                     t1 = tokens.sign({"c": c["id"], "e": c["entity_id"], "ds": ds})
-                    m1 = messages.compose(self.ctx(c), grp, f"{config.public_base()}/s/{t1}")
+                    m1 = messages.compose(self.ctx(c), grp)
                     try:
                         from .cards import hours_card
                         m1["wa"]["image"] = hours_card(c["name"], [dict(i, entity_id=c["entity_id"]) for i in grp], c["lang"])
@@ -362,11 +365,13 @@ class Engine:
                     for i in grp:
                         i["token"] = t1
                     c["outbox"].append({"at": now_iso(), "kind": "suggestion " + ", ".join(ds),
-                                        "channel": self._chan_name(c, via), "text": m1["text"], "result": res})
+                                        "channel": self._chan_name(c, via), "text": m1["text"],
+                                        "wa": (m1.get("wa") or {}).get("body"), "buttons": m1["buttons"], "result": res})
             else:
                 res = ch.send_suggestion(c.get("to_phone"), msg, [f"a:{tok}", f"e:{tok}", f"d:{tok}"])
                 c["outbox"].append({"at": now_iso(), "kind": "suggestion", "channel": self._chan_name(c, via),
-                                    "text": msg["text"], "result": res})
+                                    "text": msg["text"],
+                                    "wa": (msg.get("wa") or {}).get("body"), "buttons": msg["buttons"], "result": res})
             c["message"] = msg
             for i in c["items"]:
                 if i["status"] == "pending" and i["action"] == "SUGGEST":
@@ -606,7 +611,7 @@ class Engine:
             for grp in (self.groups(open_items) if ch.real else [open_items]):
                 ds = [i["date"] for i in grp]
                 t1 = tokens.sign({"c": c["id"], "e": c["entity_id"], "ds": ds})
-                m1 = messages.compose(dict(self.ctx(c), first=nm or c["first"]), grp, f"{config.public_base()}/s/{t1}")
+                m1 = messages.compose(dict(self.ctx(c), first=nm or c["first"]), grp)
                 for k in ("body", "text"):
                     m1[k] = m1[k].replace("\n", "\n" + note + "\n", 1)
                 if m1.get("wa"):

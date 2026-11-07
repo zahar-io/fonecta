@@ -63,9 +63,9 @@ ITEM = {"date": "2026-12-24", "day_key": "XMAS_EVE", "action": "SUGGEST", "hours
 class Messages(unittest.TestCase):
     def test_four_languages(self):
         for lang in ("fi", "sv", "nb", "en"):
-            m = messages.compose({"lang": lang, "first": "Aino", "name": "Kahvila Testi", "views": 1234}, [ITEM],
-                                 "https://x/s/abc")
-            self.assertIn("https://x/s/abc", m["text"])
+            m = messages.compose({"lang": lang, "first": "Aino", "name": "Kahvila Testi", "views": 1234}, [ITEM])
+            self.assertNotIn("http", m["text"])  # no links: buttons, or reply OK / 1 by text
+            self.assertIn("OK", m["text"])
             self.assertEqual(len(m["buttons"]), 3)
             self.assertIn("Aino", m["text"])
 
@@ -199,6 +199,8 @@ class ExtraChannels(unittest.TestCase):
     def test_sms_reply(self):
         from app.channels_extra import parse_sms_reply
         self.assertEqual(parse_sms_reply(" 1 ")[0], "approve")
+        self.assertEqual(parse_sms_reply("OK")[0], "approve")
+        self.assertEqual(parse_sms_reply("undo")[0], "undo")
         self.assertEqual(parse_sms_reply("Ei")[0], "decline")
         self.assertEqual(parse_sms_reply("open 9 to 13"), ("text", "open 9 to 13"))
 
@@ -217,3 +219,28 @@ class Watch(unittest.TestCase):
                          '{"title":"Old","date":"2025-01-01"},{"title":"","date":"2026-11-21"},{"title":"x","date":"bad"}]}'
         evs = extract("page", date(2026, 11, 7), fake)
         self.assertEqual([e["title"] for e in evs], ["Jazz night"])
+
+
+class UndoAndCalls(unittest.TestCase):
+    def test_auto_applied_has_no_link(self):
+        ctx = {"lang": "en", "first": "Mikko", "name": "Kahvila Aurora"}
+        wa = messages.auto_applied(ctx, [], [], by_text=False)
+        sms = messages.auto_applied(ctx, [], [], by_text=True)
+        self.assertNotIn("http", wa + sms)
+        self.assertIn("Tap Undo", wa)
+        self.assertIn("Reply UNDO", sms)
+
+    def test_imessage_has_buttons(self):
+        from app.channels_extra import IMessageChannel
+        p = IMessageChannel._quick_replies("Hi", [("a:x", "Approve"), ("d:x", "No thanks")])
+        self.assertEqual([i["title"] for i in p["interactiveData"]["quickReply"]["items"]], ["Approve", "No thanks"])
+
+    def test_call_is_whatsapp_only(self):
+        from app import call
+        old = {k: os.environ.pop(k, None) for k in ("WA_TOKEN", "WA_PHONE_NUMBER_ID")}
+        try:
+            r = call.place("hello", "test", "358000")
+        finally:
+            os.environ.update({k: v for k, v in old.items() if v})
+        self.assertEqual(r["transport"], "wa-call")
+        self.assertFalse(r["dialled"])

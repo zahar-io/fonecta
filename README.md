@@ -30,10 +30,10 @@ Settings come only from env vars: `YEXT_BASE_URL` (`https://sbx-api.yextapis.com
 1. **Detect**: `brain/` scores every (business, special day) from 7 Nov 2026 to 6 Jan 2027. It gives P(closed), P(same as Google shows) and P(other hours) from the owner's own past exceptions, shopping-centre hours, peers, last year's activity on that day, closed-door reviews and Google user edits. It uses only data from before the snapshot.
 2. **Suggest**: picks the hours candidate with the best track record (mall → last year → Google user edit → two years ago → peers), with an expected-value gate. It sends a suggestion when it's confident, asks a question when it isn't, and stays quiet otherwise. A business that looks closed for good is flagged to a human instead.
 3. **Contact**: one bundled message per business, in fi/sv/nb/en, sent through the owner's preferred channel and contact window. Each date says what Google shows now and why that's wrong. A value line uses their real search and map views. Opt-outs are respected.
-4. **Decide**: a signed, expiring link (no login) offers Approve / Edit (time picker, or closed) / No thanks with a one-tap reason, plus "handle public holidays for me from now on". The same decisions work from WhatsApp reply buttons.
+4. **Decide**: no login and no web page. WhatsApp buttons (Approve / Edit / No thanks), with edits typed or spoken in the chat ("9 to 13"), plus "handle public holidays for me from now on". By SMS the owner replies OK or 1 to approve, 2 or NO to decline, or writes the hours; iMessage gets the same buttons as Apple quick replies.
 5. **Apply and confirm**: GET hours, merge, then PUT the full hours object to Yext. Yext replaces the whole holidayHours list, so we keep future dates, drop past ones and sort them. The confirmation lists where the new hours show and how soon.
 
-**Reliability:** `Engine._write` refuses any write without an owner decision, a standing permission (confident public holidays only, then inform with a one-tap Undo) or an owner undo. A unit test covers this. Every suggestion, message and decision is logged with its reasons (audit trail).
+**Reliability:** `Engine._write` refuses any write without an owner decision, a standing permission (confident public holidays only, then an inform message with an Undo button) or an owner undo. A unit test covers this. Every suggestion, message and decision is logged with its reasons (audit trail).
 
 ![What Connect remembers per owner: approved, edited, declined, standing rules](docs/img/learning_graph.png)
 
@@ -49,10 +49,8 @@ Settings come only from env vars: `YEXT_BASE_URL` (`https://sbx-api.yextapis.com
 
 - **Escalation (hierarchy):** if there's no answer within `ESCALATE_HOURS` (24 h), the same suggestion goes to the next approver from `app/var/approvers.json`. Whoever taps first decides, and the audit trail records who.
 - **Urgent call:** a real **WhatsApp voice call** (Cloud API Calling, WebRTC via aiortc) that speaks the suggestion, after the owner granted call permission; a spoken voice note is the fallback.
-- **Urgent call (other transports):** if the date is within 48 h and the owner has been silent for 4 h, one voice call explains the suggestion and asks them to tap Approve. A call never decides by itself. `app/call.py` offers preview mode or Flovr's existing voice service (pre-existing, not part of this repo).
 - **Reviews (extensibility):** a bad review gets a reply drafted in the review's own language (fi/sv/nb/en). The owner posts, edits or skips (no login), and the reply goes to Yext's Reviews API. Every week the owner gets a general summary: count, average, good vs poor, what people liked and what they complained about. `app/reviews.py`.
 - **Live events:** "stay open later?" questions from Helsinki LinkedEvents (live). See below.
-- **Listing preview:** after approving, the owner sees how their special hours will show, labelled as a preview.
 - **WhatsApp:** one message per decision (back-to-back days or one event share a message) with a header card; **Edit happens in the chat**: the owner types "8-14" / "10am-4pm" / "closed", Connect confirms, and nothing is saved before the Save tap. Interactive buttons inside the 24 h window, a template mode for business-initiated messages, and a webhook. See [docs/WHATSAPP.md](docs/WHATSAPP.md).
 
 ## Suggestion quality (Fonecta's scorer)
@@ -124,10 +122,10 @@ No GPL/AGPL components.
 - **Data**: only the synthetic Fonecta/Since AI dataset and public Helsinki LinkedEvents. No real customer data.
 - **Secrets**: keys (Yext sandbox, WhatsApp, Gemini) come from environment variables, kept in the machine's keychain. None are in this repo or its history, and they don't appear in the video or deck.
 - **Owner control**: `Engine._write` refuses any write without an owner decision, a standing permission or an undo (unit-tested). Every decision is logged with who, when and through which channel.
-- **No-login links** are signed and expire (`app/links.py`). The ops console needs a key when it's reachable from outside.
+- **Buttons carry signed, expiring tokens** (`app/links.py`), so a reply only acts on its own suggestion. There are no owner web pages; only the WhatsApp webhook is public, and the ops console needs a key when it's reachable from outside.
 - **Messaging**: WhatsApp only after the owner messages first or through an approved template. Calls need the owner's call permission, and opt-outs are respected.
 - **AI input**: owner messages and watched pages are treated as data, not instructions; model output is validated before use.
 
 ## Pre-existing work (not built at the event)
 
-Everything in this repo was built during the event, on top of Fonecta's starter kit (baseline, Yext mock, scorer, MIT). Kept apart and not part of this repo: Zahar IO, the agent platform that Zahar runs on, and Flovr's existing voice-call service, which `app/call.py` can optionally call.
+Everything in this repo was built during the event, on top of Fonecta's starter kit (baseline, Yext mock, scorer, MIT). Kept apart and not part of this repo: Zahar IO, the agent platform that Zahar runs on.

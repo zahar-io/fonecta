@@ -36,7 +36,7 @@ h1{margin:0 0 6px;font-size:40px}.sub{color:#666;font-size:20px}
 .row{display:flex;align-items:center;gap:18px;padding:12px 0;border-bottom:1px solid #eee;font-size:24px}
 .d{width:190px;font-weight:700}.g{width:150px;color:#b3261e;text-decoration:line-through}.s{width:170px;color:#188038;font-weight:700}
 .why{flex:1;font-size:18px;color:#444}.btn{border:0;border-radius:12px;padding:16px 26px;font-size:22px;cursor:pointer;background:#5b3fa0;color:#fff}
-.btn.g2{background:#ece8f6;color:#5b3fa0}iframe{width:410px;height:820px;border:12px solid #1d1b26;border-radius:36px;background:#fff}
+.btn.g2{background:#ece8f6;color:#5b3fa0}.phone{width:410px;height:820px;border:12px solid #1d1b26;border-radius:36px;background:#efe7dd;overflow-y:auto;padding:14px}.bub{background:#fff;border-radius:10px;padding:10px 12px;margin:0 0 10px;font-size:15px;white-space:pre-wrap;box-shadow:0 1px 1px #0002}.bub .t{color:#888;font-size:12px;text-align:right}.wb{display:block;text-align:center;color:#128c7e;border-top:1px solid #eee;padding:6px 0 0;margin-top:6px}
 pre{white-space:pre-wrap;font-family:inherit;font-size:20px;margin:0}.k{color:#5b3fa0;font-weight:700;font-size:18px;letter-spacing:1px;text-transform:uppercase}
 code{font-size:18px}
 """
@@ -50,6 +50,16 @@ def _row(it):
             f"<div class=g>{E(nice(it.get('shown_hours') or ''))}</div><div class=s>{E(sug)}{flag}</div>"
             f"<div class=why>{E(why)} <span class=sub>· {int(it.get('confidence', 0) * 100)}% sure · "
             f"{int((it.get('at_risk') or {}).get('views', 0))} views at risk</span></div></div>")
+
+
+def _chat(c: dict) -> str:
+    """The owner's side, rendered from what Connect actually sent (the case outbox): no extra page, no login."""
+    out = []
+    for o in (c.get("outbox") or [])[-6:]:
+        body = o.get("wa") or o.get("text") or ""
+        btns = "".join(f"<span class=wb>{E(b)}</span>" for b in (o.get("buttons") or []))
+        out.append(f"<div class=bub>{E(body)}{btns}<div class=t>{E(o.get('kind', ''))} · {E(str(o.get('at', ''))[11:16])}</div></div>")
+    return "".join(out) or "<p class=sub>Nothing sent yet.</p>"
 
 
 @router.get("/demo", response_class=HTMLResponse)
@@ -80,7 +90,8 @@ def demo(eid: str = "FI-D0001"):
                     if __import__("app.channels", fromlist=["wa_configured"]).wa_configured() else ""))
         right = "<div class=card><div class=k>Owner's phone</div><p class=sub>Nothing sent yet.</p></div>"
     else:
-        right = f"<div class=k style='margin-bottom:8px'>4 · Owner's phone (live, no login)</div><iframe id=ph src='/s/{E(c['token'])}'></iframe>"
+        right = (f"<div class=k style='margin-bottom:8px'>4 · Owner's WhatsApp (what Connect sent, live)</div>"
+                 f"<div class=phone>{_chat(c)}</div>")
     if decided:
         try:
             hh = (e.yext.get_entity(eid, "hours").get("hours") or {}).get("holidayHours") or []

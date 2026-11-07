@@ -2,10 +2,11 @@
 not new logic: the engine, learning, decision log and Yext write stay the same.
 
 * SmsChannel: any HTTP SMS gateway with a Twilio-style API (SMS_GATEWAY_URL, SMS_ACCOUNT, SMS_TOKEN, SMS_FROM).
-  For owners without smartphones: "Reply 1 = yes, 2 = no, or just write the hours." Replies come back through the
-  gateway's webhook and go through parse_sms_reply() into the same decide / free-text path as WhatsApp.
+  For owners without smartphones: "Reply OK or 1 to approve, 2 or NO to decline, or write your hours." Replies come
+  back through the gateway's webhook and go through parse_sms_reply() into the same decide / free-text path as WhatsApp.
 * IMessageChannel: Apple Messages for Business through a registered messaging service provider
-  (IMSG_MSP_URL, IMSG_BUSINESS_ID, IMSG_TOKEN). Needs Apple's business registration, so it stays off for the demo.
+  (IMSG_MSP_URL, IMSG_BUSINESS_ID, IMSG_TOKEN), with the same buttons as WhatsApp as Apple quick replies.
+  Needs Apple's business registration, so it stays off for the demo.
 
 Both are disabled unless SMS_ENABLED=1 / IMESSAGE_ENABLED=1 and their credentials are set."""
 from __future__ import annotations
@@ -20,8 +21,9 @@ import urllib.request
 from .channels import Channel
 
 
-def _hours_line(msg: dict) -> str:
-    return (msg.get("sms") or msg.get("text") or "")[:600]
+def _sms_text(msg: dict) -> str:
+    """The suggestion plus how to answer by text (no link, no buttons)."""
+    return (msg.get("text") or msg.get("body") or "")[:1500]
 
 
 class SmsChannel(Channel):
@@ -47,20 +49,22 @@ class SmsChannel(Channel):
             return {"ok": False, "channel": "sms", "error": str(ex)[:120]}
 
     def send_suggestion(self, to, msg, button_ids):
-        return self._send(to, _hours_line(msg) + "\n\nReply 1 = yes, 2 = no, or write the hours you want.")
+        return self._send(to, _sms_text(msg))
 
     def send_text(self, to, text):
         return self._send(to, text)
 
 
 def parse_sms_reply(text: str) -> tuple:
-    """'1' / 'yes' -> ('approve', None); '2' / 'no' -> ('decline', None); anything else -> ('text', text),
-    which goes to the same free-text parser as a WhatsApp message."""
+    """'OK' / '1' / 'yes' -> ('approve', None); '2' / 'no' -> ('decline', None); 'UNDO' -> ('undo', None);
+    anything else -> ('text', text), which goes to the same free-text parser as a WhatsApp message."""
     t = (text or "").strip().lower()
-    if re.fullmatch(r"(1|y|yes|kyllä|joo|ja)\W*", t):
+    if re.fullmatch(r"(ok|okay|okei|okej|1|y|yes|kyllä|joo|ja)\W*", t):
         return "approve", None
     if re.fullmatch(r"(2|n|no|ei|nej|nei)\W*", t):
         return "decline", None
+    if re.fullmatch(r"(undo|peru|ångra|angre)\W*", t):
+        return "undo", None
     return "text", text.strip()
 
 
@@ -86,11 +90,18 @@ class IMessageChannel(Channel):
         except Exception as ex:  # noqa: BLE001
             return {"ok": False, "channel": "imessage", "error": str(ex)[:120]}
 
+    @staticmethod
+    def _quick_replies(body: str, buttons: list) -> dict:
+        """Apple Messages for Business quick replies: tappable buttons under the message, like WhatsApp's."""
+        return {"type": "interactive", "body": body[:1500],
+                "interactiveData": {"quickReply": {"summaryText": body[:120],
+                                                   "items": [{"identifier": i, "title": t} for i, t in buttons[:5]]}}}
+
     def send_suggestion(self, to, msg, button_ids):
-        # Apple's "list picker" carries the same three choices as the WhatsApp buttons.
-        return self._send(to, {"type": "listPicker", "body": _hours_line(msg),
-                               "items": [{"id": b, "title": t} for b, t in
-                                         zip(button_ids, ("Approve", "Edit", "No thanks"))]})
+        return self._send(to, self._quick_replies(msg["body"], list(zip(button_ids, msg["buttons"]))))
+
+    def send_text_buttons(self, to, text, buttons):
+        return self._send(to, self._quick_replies(text, buttons))
 
     def send_text(self, to, text):
         return self._send(to, {"type": "text", "body": text})

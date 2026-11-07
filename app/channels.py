@@ -134,6 +134,17 @@ class WhatsAppCloudChannel(Channel):
         return {"ok": "error" not in r, "channel": "whatsapp", "delivered": "error" not in r,
                 "provider_id": ((r.get("messages") or [{}])[0]).get("id"), "error": r.get("error")}
 
+    def send_buttons(self, to, text, buttons):
+        """buttons: [(id, title)] up to 3."""
+        if not wa_configured():
+            return {"ok": False, "channel": "whatsapp", "error": "WhatsApp not configured"}
+        r = self._transport(f"{GRAPH}/{self.phone_id}/messages",
+                            {"messaging_product": "whatsapp", "to": self.recipient(to), "type": "interactive",
+                             "interactive": {"type": "button", "body": {"text": text[:1024]},
+                                             "action": {"buttons": [{"type": "reply", "reply": {"id": i, "title": t[:20]}}
+                                                                    for i, t in buttons[:3]]}}})
+        return {"ok": "error" not in r, "channel": "whatsapp", "error": r.get("error")}
+
     def send_text(self, to, text):
         if not wa_configured():
             return {"ok": False, "channel": "whatsapp", "error": "WhatsApp not configured"}
@@ -153,6 +164,17 @@ def parse_webhook(payload: dict) -> list:
                     out.append((m.get("from"), m["interactive"]["button_reply"].get("id")))
                 elif m.get("type") == "button":
                     out.append((m.get("from"), (m.get("button") or {}).get("payload")))
+    return out
+
+
+def parse_texts(payload: dict) -> list:
+    """WhatsApp webhook -> [(from, text)] for typed text messages."""
+    out = []
+    for entry in payload.get("entry", []) or []:
+        for ch in entry.get("changes", []) or []:
+            for m in (ch.get("value") or {}).get("messages", []) or []:
+                if m.get("type") == "text":
+                    out.append((m.get("from"), (m.get("text") or {}).get("body", "")))
     return out
 
 

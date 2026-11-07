@@ -129,3 +129,13 @@ class Reviews(unittest.TestCase):
         self.assertEqual(d["lang"], "nb")
         self.assertIn("closed", d["topics"])
         self.assertIn("Bakeri Fjord", d["reply"])
+
+
+class ChatEdit(unittest.TestCase):
+    def test_parse_hours(self):
+        from app.chat_edit import parse_hours as p
+        self.assertEqual(p("8-14"), "08:00-14:00")
+        self.assertEqual(p("10am to 4pm"), "10:00-16:00")
+        self.assertEqual(p("10-14, 17-22"), "10:00-14:00,17:00-22:00")
+        self.assertEqual(p("Closed"), "closed")
+        self.assertIsNone(p("maybe later"))

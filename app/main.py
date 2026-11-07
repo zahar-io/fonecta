@@ -472,8 +472,86 @@ async def wa_hook(request: Request):
                 eng().decide(c["id"], {d: {"action": act} for d in ds}, channel="whatsapp")
             else:
                 eng().decide_all(c["id"], act, channel="whatsapp")
-        elif kind == "e":
-            e = eng()
-            e._deliver_text(c, messages.edit_prompt(e.ctx(c), f"{config.public_base()}/s/{link}"), "edit link")
-            e.save()
+        elif kind == "e":  # start an edit conversation in the chat, one date at a time
+            ds = body.get("ds") or ([body["d"]] if body.get("d") else
+                                    [i["date"] for i in c["items"] if i["status"] == "sent"])
+            _edit_ask(c, ds, frm)
+    for frm, bid in channels.parse_webhook(payload):
+        if bid in ("es", "er"):
+            _edit_button(frm, bid)
+    for frm, text in channels.parse_texts(payload):
+        _edit_text(frm, text)
     return {"ok": True}
+
+
+def _edit_state():
+    return eng().state.setdefault("wa_edit", {})
+
+
+def _edit_item(st):
+    c = eng().case(st["cid"])
+    d = st["dates"][st["i"]]
+    return c, next(i for i in c["items"] if i["date"] == d)
+
+
+def _wa():
+    return channels.WhatsAppCloudChannel()
+
+
+def _log(c, kind, text, res):
+    c["outbox"].append({"at": __import__("app.learning", fromlist=["now_iso"]).now_iso(), "kind": kind,
+                        "channel": "whatsapp", "text": text, "result": res})
+
+
+def _edit_ask(c, ds, frm):
+    from . import chat_edit
+    ds = [d for d in ds if any(i["date"] == d and i["status"] == "sent" for i in c["items"])]
+    if not ds:
+        return
+    _edit_state()[frm] = {"cid": c["id"], "dates": ds, "i": 0, "hours": None}
+    c2, it = _edit_item(_edit_state()[frm])
+    q = chat_edit.question(it, c["lang"])
+    _log(c2, "edit question", q, _wa().send_text(frm, q))
+    eng().save()
+
+
+def _edit_text(frm, text):
+    from . import chat_edit
+    st = _edit_state().get(frm)
+    if not st:
+        return
+    c, it = _edit_item(st)
+    h = chat_edit.parse_hours(text)
+    if not h:
+        m = chat_edit.not_understood(c["lang"])
+        _log(c, "edit retry", m, _wa().send_text(frm, m))
+    else:
+        st["hours"] = h
+        m = chat_edit.confirm(it, c["lang"], h)
+        b = chat_edit.buttons(c["lang"])
+        _log(c, "edit confirm", m, _wa().send_buttons(frm, m, [("es", b[0]), ("er", b[1])]))
+    eng().save()
+
+
+def _edit_button(frm, bid):
+    from . import chat_edit
+    st = _edit_state().get(frm)
+    if not st or not st.get("hours"):
+        return
+    c, it = _edit_item(st)
+    if bid == "er":
+        st["hours"] = None
+        m = chat_edit.again(it, c["lang"])
+        _log(c, "edit again", m, _wa().send_text(frm, m))
+        eng().save()
+        return
+    eng().decide(c["id"], {it["date"]: {"action": "edit", "hours": st["hours"]}}, channel="whatsapp chat")
+    st["i"] += 1
+    if st["i"] < len(st["dates"]):
+        st["hours"] = None
+        c, nxt = _edit_item(st)
+        q = chat_edit.question(nxt, c["lang"])
+        _log(c, "edit question", q, _wa().send_text(frm, q))
+    else:
+        _edit_state().pop(frm, None)
+    eng().save()

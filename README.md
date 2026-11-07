@@ -7,6 +7,8 @@ owner in their own channel and language, and after one tap (no login) writes the
 Built during the event by Flovr (Alex, Vova and Zahar, Flovr's AI agent). All data is the synthetic Fonecta/Since AI
 dataset. No real customer data.
 
+![How it works: Fonecta data, events and reviews go into one brain, the owner decides on WhatsApp or a call, Yext publishes](docs/img/architecture.png)
+
 ## Run it
 
 ```bash
@@ -16,7 +18,7 @@ python $FONECTA_KIT/mock_api/server.py &                          # Yext mock on
 .venv/bin/python brain/model.py                                   # trains, writes predictions_2026.csv (+ explained CSV)
 BRAIN_PREDICTIONS=$PWD/outputs/predictions_2026_explained.csv \
   .venv/bin/python -m uvicorn app.main:app --port 8800            # ops console: http://localhost:8800
-.venv/bin/python -m unittest discover app/tests                   # 11 tests, no network
+.venv/bin/python -m unittest discover app/tests                   # 20 tests, no network
 ```
 
 Settings come only from env vars: `YEXT_BASE_URL` (`https://sbx-api.yextapis.com/v2` for the team sandbox), `YEXT_API_KEY`,
@@ -33,11 +35,17 @@ Settings come only from env vars: `YEXT_BASE_URL` (`https://sbx-api.yextapis.com
 
 **Reliability:** `Engine._write` refuses any write without an owner decision, a standing permission (confident public holidays only, then inform with a one-tap Undo) or an owner undo. A unit test covers this. Every suggestion, message and decision is logged with its reasons (audit trail).
 
+![What Connect remembers per owner: approved, edited, declined, standing rules](docs/img/learning_graph.png)
+
 **Learning:** "open as usual" or "not this year" suppresses that day. Edits are remembered and their pattern is applied to similar suggestions. Unclear declines lower confidence, so next time Connect asks instead of suggesting. 2025 pilot decisions seed each owner's history.
 
 ## Beyond the five steps (same loop, more cases)
 
-- **Channel-agnostic:** the decision engine talks to a `Channel` interface (`app/channels.py`). Live: WhatsApp (buttons, chat, voice notes) and WhatsApp voice calls. Built as previews: SMS and email. Adding phone calls (telephony provider) or iMessage (Apple Messages for Business) means one new class; detection, decisions and learning don't change.
+- **Channel-agnostic:** the decision engine talks to a `Channel` interface (`app/channels.py`). Live: WhatsApp (buttons, chat, voice notes) and WhatsApp voice calls. **Built and switched off** (`app/channels_extra.py`): SMS through any Twilio-style gateway, with "reply 1 = yes, 2 = no, or write the hours" for owners without smartphones (`SMS_ENABLED=1`), and iMessage through Apple Messages for Business (`IMESSAGE_ENABLED=1`, needs Apple's business registration). Detection, decisions and learning don't change per channel.
+- **Decision log:** every suggestion, answer, edit, call and change also lands in one SQLite table (`app/var/decisions.db`). `/log` shows it per business (who, what, when, which channel) and `/api/decisions` serves it as JSON. That's the one connection Connect's own UI would need to show the owner's WhatsApp decisions next to everything else.
+- **Best time to message:** after 3+ replies, Connect learns the 2-hour window when this owner actually answers and sends new messages then (the CRM contact window is only the starting point). Shown in "what Connect learned".
+- **Staff shifts:** the evening before, Connect checks tomorrow's schedule from a shift platform and tells the owner if nobody has claimed the opening shift: close the morning on Google, or "I'll sort it". The schedule here is synthetic, in the shape Planday/Quinyx expose (`app/shifts.py`, `app/data/shifts_demo.json`).
+- **Watched pages:** the owner writes "watch https://… for events near my café"; every 6 h Connect re-reads the page, a light model lists the dated events (page text is treated as data, output validated), and each new event reaches the owner once (`app/watch.py`).
 
 - **Escalation (hierarchy):** if there's no answer within `ESCALATE_HOURS` (24 h), the same suggestion goes to the next approver from `app/var/approvers.json`. Whoever taps first decides, and the audit trail records who.
 - **Urgent call:** a real **WhatsApp voice call** (Cloud API Calling, WebRTC via aiortc) that speaks the suggestion, after the owner granted call permission; a spoken voice note is the fallback.

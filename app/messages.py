@@ -440,7 +440,7 @@ def wa_format(ctx: dict, items: list, url: str) -> dict:
         tail = ["", f"💡 *{lbl[2]}:* {why}", "", lbl[3]]
         body = "\n".join(head + [title(it)] + facts + tail)
         short = "\n".join(head + [title(it)] + tail)   # the header card already shows the hours
-        return {"header": WA_HEAD[lang], "body": body, "body_with_card": short, "footer": "Connect · demo"}
+        return {"header": WA_HEAD[lang], "body": body, "body_with_card": short, "footer": "Fonecta Connect"}
     lines = head + [t["multi"].format(name=f"*{ctx['name']}*", n=len(items))]
     for it in items:
         k = _basis_key(it)
@@ -451,7 +451,7 @@ def wa_format(ctx: dict, items: list, url: str) -> dict:
             lines.append(f"   💡 _{why}_")
     lines += ["", lbl[3]]
     body = "\n".join(lines)
-    return {"header": WA_HEAD[lang], "body": body, "body_with_card": body, "footer": "Connect · demo"}
+    return {"header": WA_HEAD[lang], "body": body, "body_with_card": body, "footer": "Fonecta Connect"}
 
 
 # ------------------------------------------------------------------ follow-ups

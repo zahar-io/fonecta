@@ -539,6 +539,17 @@ def _free_text(frm, text):
         return
     lang = c["lang"]
     ds, h = chat_edit.parse_request(text, config.SNAPSHOT)
+    if not (ds and h):  # rules didn't get all of it: ask the light AI model, then validate its answer
+        from . import nlu
+        from .hours import day_str
+        try:
+            hours = (e.yext.get_entity(c["entity_id"], "hours") or {}).get("hours") or {}
+            regular = {d: day_str(hours.get(d) or {}) for d in nlu.DAYS}
+        except Exception:
+            regular = {}
+        ad, ah = nlu.parse(text, config.SNAPSHOT, regular)
+        if ad:
+            ds, h = ad, (ah or h)
     if not ds and req and req.get("dates") and not req.get("hours"):
         ds, h = req["dates"], chat_edit.parse_hours(text)
     if not ds:

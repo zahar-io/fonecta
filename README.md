@@ -80,7 +80,7 @@ Settings come only from env vars: `YEXT_BASE_URL` (`https://sbx-api.yextapis.com
 
 ## Customer with no history
 
-`FI-D0017` Kahvila Kipinä (joined 12 Oct 2026, no exceptions, no decisions): suggestions come from peers. Confident ones (Christmas Day closed, 0.89) are suggested. Weak ones (Father's Day, 0.29) are asked as a question ("Are you open on…?"), never assumed. Nothing is ever written without the owner.
+`FI-D0017` Kahvila Kipinä (joined 12 Oct 2026, no exceptions, no decisions) has no history of its own, so suggestions come from peers and the state model. With the brain's predictions loaded (`BRAIN_PREDICTIONS`), Christmas Day closed (0.93) and New Year's Day closed (0.99) are confident, so they're suggested. Father's Day (8 Nov) gets nothing: Google already shows closed, and no source of other hours is reliable enough to suggest. Without the brain file, the app falls back to peers only and lowers confidence for a new customer: Christmas Day closed comes out at 0.55, under 0.6, so it's asked as a question ("Are you open on…?"), never assumed. Nothing is ever written without the owner. (Re-checked 8 Nov: `python brain/model.py` writes the brain file to `outputs/`.)
 
 ## Final customer messages
 

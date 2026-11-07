@@ -100,15 +100,15 @@ class WhatsAppCloudChannel(Channel):
                              + [{"type": "button", "sub_type": "quick_reply", "index": str(i),
                                  "parameters": [{"type": "payload", "payload": bid}]} for i, bid in enumerate(button_ids[:3])]}}
 
-    def upload_image(self, path: str) -> str | None:
+    def upload_image(self, path: str, mime: str = "image/png", fname: str = "card.png") -> str | None:
         """POST /{phone_id}/media (multipart) -> media id, or None."""
         import uuid as _u
         bnd = "----flovr" + _u.uuid4().hex
         data = open(path, "rb").read()
         body = (f"--{bnd}\r\nContent-Disposition: form-data; name=\"messaging_product\"\r\n\r\nwhatsapp\r\n"
-                f"--{bnd}\r\nContent-Disposition: form-data; name=\"type\"\r\n\r\nimage/png\r\n"
-                f"--{bnd}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"card.png\"\r\n"
-                f"Content-Type: image/png\r\n\r\n").encode() + data + f"\r\n--{bnd}--\r\n".encode()
+                f"--{bnd}\r\nContent-Disposition: form-data; name=\"type\"\r\n\r\n{mime}\r\n"
+                f"--{bnd}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{fname}\"\r\n"
+                f"Content-Type: {mime}\r\n\r\n").encode() + data + f"\r\n--{bnd}--\r\n".encode()
         req = urllib.request.Request(f"{GRAPH}/{self.phone_id}/media", data=body, method="POST",
                                      headers={"Authorization": "Bearer " + os.environ.get("WA_TOKEN", ""),
                                               "Content-Type": f"multipart/form-data; boundary={bnd}"})
@@ -133,6 +133,26 @@ class WhatsAppCloudChannel(Channel):
         r = self._transport(f"{GRAPH}/{self.phone_id}/messages", payload)
         return {"ok": "error" not in r, "channel": "whatsapp", "delivered": "error" not in r,
                 "provider_id": ((r.get("messages") or [{}])[0]).get("id"), "error": r.get("error")}
+
+    def send_voice(self, to, text: str, voice: str = "Samantha") -> dict:
+        """Spoken nudge as a WhatsApp voice message: macOS TTS -> ogg/opus -> media upload -> audio message."""
+        import subprocess
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            aiff, ogg = os.path.join(d, "v.aiff"), os.path.join(d, "v.ogg")
+            try:
+                subprocess.run(["say", "-v", voice, "-o", aiff, text], check=True, timeout=60)
+                subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", aiff, "-c:a", "libopus", "-b:a", "32k", ogg],
+                               check=True, timeout=60)
+            except (OSError, subprocess.SubprocessError) as ex:
+                return {"ok": False, "channel": "whatsapp", "error": str(ex)[:120]}
+            mid = self.upload_image(ogg, "audio/ogg", "nudge.ogg")
+        if not mid:
+            return {"ok": False, "channel": "whatsapp", "error": "audio upload failed"}
+        r = self._transport(f"{GRAPH}/{self.phone_id}/messages",
+                            {"messaging_product": "whatsapp", "to": self.recipient(to), "type": "audio",
+                             "audio": {"id": mid}})
+        return {"ok": "error" not in r, "channel": "whatsapp", "error": r.get("error")}
 
     def send_buttons(self, to, text, buttons):
         """buttons: [(id, title)] up to 3."""

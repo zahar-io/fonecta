@@ -635,7 +635,8 @@ class Engine:
             text = call.script(lang, first=c["first"] or c["name"], name=c["name"],
                                when=f"{messages.WD_LONG[lang][d.weekday()]} {messages.dm(d, lang)}", what=what)
             res = call.place(text, f"Connect Suggests demo: urgent hours suggestion for {c['name']} ({first['date']}). "
-                                   f"Explain it in {lang} and ask the owner to tap Approve in the message.")
+                                   f"Explain it in {lang} and ask the owner to tap Approve in the message.",
+                             c.get("to_phone"))
             c["called"] = now_iso()
             c["outbox"].append({"at": now_iso(), "kind": "urgent call", "channel": res.get("transport"), "text": text,
                                 "result": res})

@@ -24,8 +24,8 @@ SCRIPT = {
           "öppettider på Google redan {when}: {what}. Vi har skickat ett förslag som meddelande. Godkänner du det?",
     "nb": "Hei {first}, dette er Fonecta Connects assistent, jeg er en KI. Jeg ringer fordi {name} viser feil "
           "åpningstider på Google allerede {when}: {what}. Vi har sendt et forslag som melding. Godkjenner du det?",
-    "en": "Hi {first}, this is Fonecta Connect's assistant, I'm an AI. I'm calling because {name} will show the wrong "
-          "hours on Google as soon as {when}: {what}. We've sent you a suggestion by message. Do you approve it?",
+    "en": "Hi {first}, this is Fonecta Connect's assistant, I'm an AI. I'm getting in touch because {name} will show the wrong "
+          "hours on Google as soon as {when}: {what}. We've sent you a suggestion by message: tap Approve if it looks right.",
 }
 
 
@@ -33,8 +33,21 @@ def script(lang: str, **kw) -> str:
     return SCRIPT.get(lang, SCRIPT["en"]).format(**kw)
 
 
-def place(text: str, why: str) -> dict:
+def place(text: str, why: str, to: str | None = None) -> dict:
     mode = os.environ.get("CALL_TRANSPORT", "preview")
+    if mode == "wa-call":  # a real WhatsApp voice call that speaks the message; falls back to a voice note
+        from . import wa_call
+        r = wa_call.start_call(os.environ.get("WA_TO") or to or "", text)
+        if r.get("ok"):
+            return {"ok": True, "transport": "wa-call", "dialled": True, "call_id": r.get("call_id")}
+        from .channels import WhatsAppCloudChannel
+        v = WhatsAppCloudChannel().send_voice(to, text)
+        return {"ok": v.get("ok"), "transport": "wa-voice (call failed)", "dialled": False,
+                "error": str(r.get("error"))[:300]}
+    if mode == "wa-voice":  # WhatsApp voice message (spoken nudge) on the same chat as the suggestion
+        from .channels import WhatsAppCloudChannel
+        r = WhatsAppCloudChannel().send_voice(to, text)
+        return {"ok": r.get("ok"), "transport": "wa-voice", "dialled": False, "error": r.get("error")}
     if mode != "zahar-caller":
         return {"ok": True, "transport": "preview", "dialled": False, "script": text}
     sock = os.path.expanduser(os.environ.get("CALL_SOCKET", "~/.zahar/caller.sock"))

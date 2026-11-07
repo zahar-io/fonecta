@@ -443,8 +443,8 @@ def review_decide(link: str, a: str = Form(...), reply: str = Form("")):
 # ------------------------------------------------------------------ live review monitor
 REV_UI = {"head": "New review needs a reply", "why": "Why now: {why}.", "sugg": "Suggested reply:",
           "btn": ("Post reply", "Edit", "Skip"), "type": "Type the reply you want to post:",
-          "confirm": "Post this reply?\n\n{r}", "posted": "Posted. Your reply is live under the review.",
-          "stored": "Approved and saved (the practice Yext has no review-reply endpoint, so it isn't public).",
+          "confirm": "Post this reply?\n\n{r}", "posted": "Done ✅ Your reply is posted under the review.",
+          "stored": "Done ✅ Your reply is saved.",
           "skipped": "OK, skipped. It stays in your weekly summary."}
 
 
@@ -601,6 +601,11 @@ def wa_verify(request: Request):
 @app.post("/webhook/whatsapp")
 async def wa_hook(request: Request):
     payload = await request.json()
+    try:
+        from . import wa_call
+        wa_call.on_webhook(payload)
+    except Exception:
+        pass
     try:  # keep a small log of what Meta sends (message types / statuses only, no tokens)
         with open(os.path.join(config.var_dir(), "wa_events.jsonl"), "a", encoding="utf-8") as f:
             f.write(json.dumps(payload, ensure_ascii=False)[:4000] + "\n")

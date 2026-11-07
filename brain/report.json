@@ -1,15 +1,20 @@
 {
- "cand_precision": {
-  "peer_special": 0.36207914943886593,
-  "reg_open_peer_close": 0.27913100724160633,
-  "ly1": 0.9325396825396826,
-  "ly2": 0.8560606060606061,
-  "ps1": 0.9333333333333333,
-  "ps2": 0.88,
-  "mall": 0.9074074074074074
- },
+ "model": "v2.1 (T403): calibrated 3-model ensemble (h1cal, h1calc, v3hcal)",
  "thr": {
-  "closed": 0.2,
-  "open": 0.3
+  "closed": 0.1,
+  "open": -0.1
+ },
+ "counts": {
+  "NO_ACTION:None": 23633,
+  "SUGGEST:STATE_MODEL": 11638,
+  "SUGGEST:PS2": 31,
+  "SUGGEST:LY2": 993,
+  "SUGGEST:PATTERN": 1141,
+  "SUGGEST:PEER_SPECIAL": 717,
+  "SUGGEST:LY1": 3128,
+  "SUGGEST:REV_CLOSE": 87,
+  "SUGGEST:PS1": 17,
+  "SUGGEST:MALL": 209,
+  "FLAG:CLOSED_SIGNALS": 161
  }
 }

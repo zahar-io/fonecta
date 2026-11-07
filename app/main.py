@@ -479,6 +479,8 @@ async def wa_hook(request: Request):
     for frm, bid in channels.parse_webhook(payload):
         if bid in ("es", "er"):
             _edit_button(frm, bid)
+        elif bid in ("rs", "rc"):
+            _request_button(frm, bid)
     for frm, text in channels.parse_texts(payload):
         _edit_text(frm, text)
     return {"ok": True}
@@ -515,11 +517,74 @@ def _edit_ask(c, ds, frm):
     eng().save()
 
 
+def _owner_case(frm):
+    """The business this phone talks for: the latest case we messaged on WhatsApp."""
+    cs = [c for c in eng().cases() if any(o.get("channel") == "whatsapp" for o in c.get("outbox", []))]
+    return max(cs, key=lambda c: c["outbox"][-1]["at"]) if cs else None
+
+
+def _days_text(c, ds):
+    from datetime import date as _d
+    lang = c["lang"]
+    return ", ".join(f"{messages.WD_SHORT[lang][_d.fromisoformat(d).weekday()]} {messages.dm(_d.fromisoformat(d), lang)}"
+                     for d in ds)
+
+
+def _free_text(frm, text):
+    from . import chat_edit
+    e = eng()
+    req = e.state.setdefault("wa_req", {}).get(frm)
+    c = e.case(req["cid"]) if req else _owner_case(frm)
+    if not c:
+        return
+    lang = c["lang"]
+    ds, h = chat_edit.parse_request(text, config.SNAPSHOT)
+    if not ds and req and req.get("dates") and not req.get("hours"):
+        ds, h = req["dates"], chat_edit.parse_hours(text)
+    if not ds:
+        m = chat_edit.HELP[lang]
+        _log(c, "help", m, _wa().send_text(frm, m))
+        e.save()
+        return
+    e.state["wa_req"][frm] = {"cid": c["id"], "dates": ds, "hours": h}
+    if not h:
+        m = chat_edit.ASK_HOURS[lang].format(days=_days_text(c, ds))
+        _log(c, "request: ask hours", m, _wa().send_text(frm, m))
+    else:
+        shown = ", ".join(sorted({nice(e.shown_on(c["entity_id"], d)) if e.shown_on(c["entity_id"], d) != "closed"
+                                  else messages.T[lang]["closed"] for d in ds}))
+        hn = messages.T[lang]["closed"] if h == "closed" else nice(h)
+        m = chat_edit.CONFIRM_REQ[lang].format(days=_days_text(c, ds), h=hn, shown=shown)
+        b = chat_edit.buttons(lang)
+        _log(c, "request: confirm", m, _wa().send_buttons(frm, m, [("rs", b[0]), ("rc", "Cancel" if lang == "en" else b[1])]))
+    e.save()
+
+
+def _request_button(frm, bid):
+    e = eng()
+    req = e.state.setdefault("wa_req", {}).pop(frm, None)
+    if not req or not req.get("hours"):
+        return
+    c = e.case(req["cid"])
+    if bid == "rc":
+        m = messages.declined(e.ctx(c))
+        _log(c, "request cancelled", m, _wa().send_text(frm, m))
+    else:
+        out = e.owner_request(c["entity_id"], {d: req["hours"] for d in req["dates"]})
+        items = [{"date": d, "day_key": "", "name_en": "", "final_hours": req["hours"], "hours": req["hours"]} for d in req["dates"]]
+        try:
+            m = messages.confirmation(e.ctx(c), items, out["live"], True)
+        except Exception:
+            m = "Done! Saved."
+        _log(c, "request saved", m, _wa().send_text(frm, m))
+    e.save()
+
+
 def _edit_text(frm, text):
     from . import chat_edit
     st = _edit_state().get(frm)
     if not st:
-        return
+        return _free_text(frm, text)
     c, it = _edit_item(st)
     h = chat_edit.parse_hours(text)
     if not h:

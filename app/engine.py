@@ -375,6 +375,29 @@ class Engine:
             self.save()
             return {"case": cid, "result": res, "message": msg}
 
+    def owner_request(self, eid: str, changes: dict, channel: str = "whatsapp chat") -> dict:
+        """The owner asked for a change in their own words and confirmed it with Save: write it, log it, confirm."""
+        with LOCK:
+            did = uuid.uuid4().hex[:10]
+            res = self._write(eid, changes, {"kind": "owner_decision", "decision_id": did, "channel": channel})
+            for d, h in changes.items():
+                self.learning.record({"entity_id": eid, "type": "owner request", "decision_id": did, "date": d,
+                                      "final_hours": h, "channel": channel})
+            return {"previous": res.get("previous"), "live": self.where_live(eid)}
+
+    def shown_on(self, eid: str, d: str) -> str:
+        """What Google shows for a date right now, read from Yext (exception if any, else the weekday hours)."""
+        from .hours import day_str
+        try:
+            hours = (self.yext.get_entity(eid, "hours") or {}).get("hours") or {}
+        except Exception:
+            return "?"
+        for h in hours.get("holidayHours") or []:
+            if h.get("date") == d and not h.get("isRegularHours"):
+                return day_str(h)
+        wd = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"][date.fromisoformat(d).weekday()]
+        return day_str(hours.get(wd) or {})
+
     @staticmethod
     def groups(items: list) -> list:
         """Back-to-back days (e.g. 24-26 Dec) or the same event go in one message (max 4); everything else alone."""

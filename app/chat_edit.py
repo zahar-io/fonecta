@@ -30,6 +30,8 @@ def parse_hours(text: str) -> str | None:
     t = (text or "").strip().lower()
     if any(w == t or t.startswith(w) for w in CLOSED):
         return "closed"
+    if not RANGE.search(t) and re.search(r"\b(" + "|".join(CLOSED) + r")\b", t):
+        return "closed"
     ivs = []
     for m in RANGE.finditer(t):
         a, b = _hm(m.group(1), m.group(2), m.group(3)), _hm(m.group(4), m.group(5), m.group(6))
@@ -82,3 +84,61 @@ def buttons(lang):
 
 def again(it, lang):
     return Q[lang][4].format(**_fmt(it, lang))
+
+
+# ------------------------------------------------------------------ free text: "can you also set 16-22 on 2nd December?"
+MONTHS = {m: i + 1 for i, names in enumerate([
+    ("jan", "january", "tammikuu", "januari", "januar"), ("feb", "february", "helmikuu", "februari", "februar"),
+    ("mar", "march", "maaliskuu", "mars"), ("apr", "april", "huhtikuu"), ("may", "toukokuu", "maj", "mai"),
+    ("jun", "june", "kesäkuu", "juni"), ("jul", "july", "heinäkuu", "juli"), ("aug", "august", "elokuu", "augusti"),
+    ("sep", "sept", "september", "syyskuu"), ("oct", "october", "lokakuu", "oktober"),
+    ("nov", "november", "marraskuu"), ("dec", "december", "joulukuu", "desember")]) for m in names}
+_DAY = r"(\d{1,2})(?:st|nd|rd|th|\.)?"
+_MON = r"(" + "|".join(sorted(MONTHS, key=len, reverse=True)) + r")[a-zä]*"
+
+
+def parse_request(text: str, today):
+    """-> ([iso dates], hours) or (None, None). Understands '2nd December', 'Dec 2', '2.12.', '24-26 Dec'."""
+    from datetime import date as _d, timedelta
+    t = (text or "").lower()
+    dates = []
+    m = re.search(r"(?<![\d:.\-–])" + _DAY + r"\s*(?:-|–)\s*" + _DAY + r"\s+(?:of\s+)?" + _MON, t)
+    if m:
+        a, b, mon = int(m.group(1)), int(m.group(2)), MONTHS[m.group(3)]
+        dates = [(a + k, mon) for k in range(0, max(0, b - a) + 1)][:7]
+        t_wo = t[:m.start()] + " " + t[m.end():]
+    else:
+        m = (re.search(_DAY + r"\s+(?:of\s+)?" + _MON, t) or re.search(_MON + r"\s+" + _DAY, t)
+             or re.search(r"\b(\d{1,2})\.(\d{1,2})\.?(?!\d)", t))
+        if not m:
+            return None, None
+        g = m.groups()
+        if g[0].isdigit() and len(g) == 2 and g[1].isdigit():
+            dates = [(int(g[0]), int(g[1]))]
+        elif g[0].isdigit():
+            dates = [(int(g[0]), MONTHS[g[1]])]
+        else:
+            dates = [(int(g[1]), MONTHS[g[0]])]
+        t_wo = t[:m.start()] + " " + t[m.end():]
+    out = []
+    for day, mon in dates:
+        y = today.year if (mon, day) >= (today.month, today.day) else today.year + 1
+        try:
+            out.append(_d(y, mon, day).isoformat())
+        except ValueError:
+            return None, None
+    return out, parse_hours(t_wo)
+
+
+HELP = {"en": "I can change your opening hours for a day. Try: *Set 16-22 on 2 December* or *Closed on 24 Dec*.",
+        "fi": "Voin muuttaa päivän aukioloajat. Kokeile: *16-22 2. joulukuuta* tai *kiinni 24.12.*",
+        "sv": "Jag kan ändra öppettiderna för en dag. Prova: *16-22 den 2 december* eller *stängt 24 dec*.",
+        "nb": "Jeg kan endre åpningstidene for en dag. Prøv: *16-22 2. desember* eller *stengt 24. des*."}
+ASK_HOURS = {"en": "Which hours for {days}? Reply like *16-22* or *closed*.",
+             "fi": "Mitkä aukioloajat {days}? Vastaa esim. *16-22* tai *kiinni*.",
+             "sv": "Vilka tider {days}? Svara t.ex. *16-22* eller *stängt*.",
+             "nb": "Hvilke tider {days}? Svar f.eks. *16-22* eller *stengt*."}
+CONFIRM_REQ = {"en": "Set *{days}* to *{h}*? Google currently shows: {shown}.",
+               "fi": "Asetetaanko *{days}*: *{h}*? Google näyttää nyt: {shown}.",
+               "sv": "Ändra *{days}* till *{h}*? Google visar nu: {shown}.",
+               "nb": "Endre *{days}* til *{h}*? Google viser nå: {shown}."}

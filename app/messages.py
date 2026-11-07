@@ -442,8 +442,8 @@ def _applied_lines(applied: list, lang: str, ev_names=None) -> list:
     out = []
     for a in sorted(applied, key=lambda x: x["date"]):
         d = date.fromisoformat(a["date"])
-        out.append(f"• {day_name(a, lang, (ev_names or {}).get(a.get('event_id')))}, "
-                   f"{WD_SHORT[lang][d.weekday()]} {dm(d, lang)}: {hrs(a['final_hours'], lang)}")
+        nm = day_name(a, lang, (ev_names or {}).get(a.get('event_id'))) if a.get("day_key") else ""
+        out.append(f"• {nm + ', ' if nm else ''}{WD_SHORT[lang][d.weekday()]} {dm(d, lang)}: {hrs(a['final_hours'], lang)}")
     return out
 
 

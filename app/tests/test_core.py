@@ -116,9 +116,6 @@ class NoWriteWithoutApproval(unittest.TestCase):
         self.assertEqual(len(e.applier.calls), 1)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 class Reviews(unittest.TestCase):
     def test_bad_review_gets_reply_in_its_language(self):
@@ -269,3 +266,44 @@ class Events(unittest.TestCase):
             text, btns = messages.busy_text(lang, "Mikko", "Kahvila Aurora", b)
             self.assertIn("Jazz (19:00)", text)
             self.assertEqual(len(btns), 2)
+
+
+class WeeklySummaryAllReviews(unittest.TestCase):
+    def test_summary_covers_praise_and_complaints(self):
+        from datetime import datetime
+        from app import reviews as rv
+        end = datetime(2026, 11, 7, 12, 0)
+        ms = int(end.timestamp() * 1000) - 3600_000
+        rs = [{"rating": 5, "content": "Great coffee and staff", "publisherDate": ms},
+              {"rating": 3, "content": "OK but a long wait", "publisherDate": ms},
+              {"rating": 1, "content": "Listed open but it was closed", "publisherDate": ms}]
+        s = rv.weekly_summary(rs, "en", end)
+        self.assertIn("1 good, 1 mixed, 1 bad", s)
+        self.assertIn("Praised: ", s)
+        self.assertIn("closed when listed open", s)
+        self.assertIn("waiting", s)
+
+
+class CallOwnerTwiceThenBackup(unittest.TestCase):
+    def test_two_owner_calls_then_backup_call(self):
+        os.environ["CALL_TRANSPORT"] = "preview"
+        tmp = tempfile.mkdtemp()
+        e = Engine(yext=FakeYext(), learning=Learning(os.path.join(tmp, "l.json")),
+                   state_path=os.path.join(tmp, "s.json"), detect=FakeYext())
+        item = {"date": "2026-12-24", "status": "sent", "action": "SUGGEST", "hours": "closed",
+                "shown_hours": "08:00-16:00", "reason": "x", "state": "closed", "day_key": "XMAS_EVE"}
+        e.state["cases"]["c1"] = {"id": "c1", "entity_id": "X1", "name": "Kahvila", "first": "Aino", "lang": "en",
+                                  "status": "sent", "items": [item], "outbox": []}
+        self.assertTrue(e.urgent_call("c1", force=True)["called"])
+        self.assertTrue(e.urgent_call("c1", force=True)["called"])
+        self.assertFalse(e.urgent_call("c1", force=True)["called"])   # a third owner call is refused
+        r = e.urgent_call("c1", force=True, backup={"name": "Mikko (manager)", "phone": "+358000"})
+        self.assertTrue(r["called"])
+        self.assertFalse(e.urgent_call("c1", force=True, backup={"name": "Mikko", "phone": "+358000"})["called"])
+        kinds = [o["kind"] for o in e.state["cases"]["c1"]["outbox"]]
+        self.assertEqual(kinds, ["urgent call", "urgent call (second try)", "urgent call to Mikko (manager) (backup)"])
+        self.assertIn("Mikko", e.state["cases"]["c1"]["outbox"][-1]["text"])
+
+
+if __name__ == "__main__":
+    unittest.main()

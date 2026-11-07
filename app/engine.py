@@ -670,7 +670,11 @@ class Engine:
             return {"case": cid, "escalated": True, "to": who.get("name")}
 
     # ---------------------------------------------------------------- urgent: call the owner
-    def urgent_call(self, cid: str, force: bool = False) -> dict:
+    OWNER_CALLS = 2  # the owner gets two tries before the backup approver is asked
+
+    def urgent_call(self, cid: str, force: bool = False, backup: dict | None = None) -> dict:
+        """Call the owner (at most OWNER_CALLS times), or with backup={name, phone} the backup approver once.
+        A call only explains the suggestion and asks for a tap: it never decides."""
         from . import call
         with LOCK:
             c = self.case(cid)
@@ -683,22 +687,33 @@ class Engine:
             within = float(os.environ.get("URGENT_WITHIN_H", "48"))
             if not force and due_h > within:
                 return {"case": cid, "called": False, "why": f"not urgent: first date is {due_h:.0f} h away"}
-            if c.get("called"):
-                return {"case": cid, "called": False, "why": "already called once: we never call twice"}
+            owner_calls = c.get("owner_calls", 1 if c.get("called") else 0)
+            if backup is None and owner_calls >= self.OWNER_CALLS:
+                return {"case": cid, "called": False, "why": f"owner already called {owner_calls} times: the backup is next"}
+            if backup is not None and c.get("backup_called"):
+                return {"case": cid, "called": False, "why": "backup already called"}
             lang = c["lang"]
             d = date.fromisoformat(first["date"])
             what = messages.bullet(first, lang, first.get("event_name")).lstrip("• ")
-            text = call.script(lang, first=c["first"] or c["name"], name=c["name"],
+            callee = ((backup.get("name") or "").split(" ")[0] if backup else "") or c["first"] or c["name"]
+            text = call.script(lang, first=callee, name=c["name"],
                                when=(f"{messages.WD_LONG[lang][d.weekday()]}, {d.day} {d.strftime('%B')}" if lang == "en"
                                      else f"{messages.WD_LONG[lang][d.weekday()]} {messages.dm(d, lang)}"), what=what,
                                shown=call.spoken_hours(first["shown_hours"]), sug=call.spoken_hours(first["hours"]))
             res = call.place(text, f"Connect Suggests demo: urgent hours suggestion for {c['name']} ({first['date']}). "
                                    f"Explain it in {lang} and ask the owner to tap Approve in the message.",
-                             c.get("to_phone"))
-            c["called"] = now_iso()
-            c["outbox"].append({"at": now_iso(), "kind": "urgent call", "channel": res.get("transport"), "text": text,
+                             backup.get("phone") if backup else c.get("to_phone"))
+            if backup:
+                c["backup_called"] = now_iso()
+                kind = f"urgent call to {backup.get('name')} (backup)"
+            else:
+                c["called"] = now_iso()
+                c["owner_calls"] = owner_calls + 1
+                kind = "urgent call" if owner_calls == 0 else "urgent call (second try)"
+            c["outbox"].append({"at": now_iso(), "kind": kind, "channel": res.get("transport"), "text": text,
                                 "result": res})
             self.learning.record({"entity_id": c["entity_id"], "case_id": cid, "type": "urgent call",
+                                  "to": (backup or {}).get("name") or "owner",
                                   "transport": res.get("transport"), "dialled": res.get("dialled")})
             self.save()
             return {"case": cid, "called": True, **res}

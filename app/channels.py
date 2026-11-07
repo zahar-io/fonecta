@@ -73,6 +73,13 @@ class WhatsAppCloudChannel(Channel):
 
     @staticmethod
     def interactive_payload(to: str, msg: dict, button_ids: list) -> dict:
+        wa = msg.get("wa")
+        if wa and len(wa["body"]) <= 1024:  # WhatsApp-native formatting with a header and footer
+            return {"messaging_product": "whatsapp", "recipient_type": "individual", "to": to, "type": "interactive",
+                    "interactive": {"type": "button", "header": {"type": "text", "text": wa["header"][:60]},
+                                    "body": {"text": wa["body"]}, "footer": {"text": wa["footer"][:60]},
+                                    "action": {"buttons": [{"type": "reply", "reply": {"id": bid, "title": title[:20]}}
+                                                           for bid, title in list(zip(button_ids, msg["buttons"]))[:3]]}}}
         body = msg["body"] + "\n\n" + msg["link_line"]
         if len(body) > 1024:  # WhatsApp interactive body limit
             body = msg["body"][: 1024 - len(msg["link_line"]) - 4].rstrip() + "…\n\n" + msg["link_line"]

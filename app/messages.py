@@ -396,7 +396,36 @@ def compose(ctx: dict, items: list, url: str) -> dict:
     buttons = list(t["buttons"])
     text = body + "\n" + " ".join(f"[{b}]" for b in buttons) + "\n" + t["link"].format(url=url) + "\n" + t["sign"]
     return {"lang": lang, "subject": t["subject"].format(name=ctx["name"]), "body": body, "buttons": buttons,
-            "link_line": t["link"].format(url=url), "text": text}
+            "link_line": t["link"].format(url=url), "text": text, "wa": wa_format(ctx, items, url)}
+
+
+# ------------------------------------------------------------------ WhatsApp formatting (*bold* _italic_ ~strike~)
+WA_HEAD = {"fi": "Pyhäpäivien aukioloajat", "sv": "Öppettider under helgerna", "nb": "Åpningstider i høytiden",
+           "en": "Holiday hours check"}
+
+
+def wa_format(ctx: dict, items: list, url: str) -> dict:
+    """WhatsApp-native version: a header, one compact block per date (struck-out wrong hours → bold right ones),
+    the reason in italics, the value line, and the no-login link. Buttons are added by the channel."""
+    lang = lang_of(ctx.get("lang"))
+    t = T[lang]
+    ev_names = ctx.get("events") or {}
+    lines = [t["hi"].format(first=ctx["first"]), ""]
+    items = sorted(items, key=lambda i: i["date"])
+    lines.append(t["multi"].format(name=f"*{ctx['name']}*", n=len(items)) if len(items) > 1
+                 else why_sentence(items[0], lang))
+    for it in items:
+        d = date.fromisoformat(it["date"])
+        k = _basis_key(it)
+        why = t["b_" + k].format(**_fill(it, lang)) if k != "OTHER" else ""
+        if it.get("mode") == "ask":
+            why = t["b_ask"].format(sug=hrs(it["hours"], lang))
+        lines += ["", f"*{WD_SHORT[lang][d.weekday()]} {dm(d, lang)}* · {day_name(it, lang, ev_names.get(it.get('event_id')))}",
+                  f"~{hrs(it['shown_hours'], lang)}~ → *{hrs(it['hours'], lang)}*" + (f"  _{why}_" if why else "")]
+    if ctx.get("views"):
+        lines += ["", "_" + t["value"].format(views=fmt_int(ctx["views"], lang)) + "_"]
+    lines += ["", t["link"].format(url=url)]
+    return {"header": WA_HEAD[lang], "body": "\n".join(lines), "footer": "Connect · demo"}
 
 
 # ------------------------------------------------------------------ follow-ups

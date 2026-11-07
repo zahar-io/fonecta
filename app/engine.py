@@ -208,14 +208,15 @@ class Engine:
              "segment": ent.get("c_segment"), "country": ent["meta"]["countryCode"],
              "first": os.environ.get("DEMO_FIRST") or con["contact_first_name"],
              "lang": messages.lang_of(os.environ.get("DEMO_LANG") or con["preferred_language"]),
-             "channel_pref": con["preferred_channel"], "window": con["best_contact_window"],
+             "channel_pref": con["preferred_channel"], "window": self.learning.reply_profile(
+                 eid, con["best_contact_window"])["window"],
              "to_phone": con.get("mobile"), "to_email": con.get("email"),
              "opted_out": con["opted_out_of_suggestions"], "created_at": now_iso(), "items": items,
              "quiet": [{k: q.get(k) for k in ("date", "day_key", "shown_hours", "basis", "reasons", "learned",
                                               "suppressed")} for q in quiet],
              "views30": v["search_map"], "views30_range": [v["start"], v["end"]],
              "priority": sum(i.get("at_risk", {}).get("views", 0) for i in items if i["action"] == "SUGGEST"),
-             "send_at": self.send_time(con["best_contact_window"]), "outbox": [], "applied": [],
+             "send_at": self.send_time(self.learning.reply_profile(eid, con["best_contact_window"])["window"]), "outbox": [], "applied": [],
              "source": get_source(self.detect_yext).name, "status": "pending"}
         self.state["cases"][cid] = c
         if c["opted_out"]:

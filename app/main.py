@@ -20,6 +20,8 @@ app = FastAPI(title="Connect Suggests – Flovr")
 ENGINE: Engine | None = None
 from .demo import router as demo_router  # noqa: E402
 app.include_router(demo_router)
+from .decision_log import router as log_router  # noqa: E402
+app.include_router(log_router)
 PUBLIC_PREFIXES = ("/s/", "/r/", "/webhook/")
 
 

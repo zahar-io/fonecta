@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import os
+import sqlite3
 import statistics
 import threading
 from collections import defaultdict
@@ -69,10 +70,14 @@ def offset_of(suggested: str, final: str):
 class Learning:
     def __init__(self, path: str | None = None):
         self.path = path or os.path.join(config.var_dir(), "learning.json")
+        self.db = os.path.join(os.path.dirname(self.path), "decisions.db")
         self.data = {"decisions": [], "prefs": {}}
         if os.path.exists(self.path):
             with open(self.path, encoding="utf-8") as f:
                 self.data = json.load(f)
+        if self.data["decisions"] and not os.path.exists(self.db):  # first run with the database: backfill
+            for row in self.data["decisions"]:
+                db_insert(row, self.db)
 
     def save(self):
         with LOCK:
@@ -85,6 +90,7 @@ class Learning:
         with LOCK:
             self.data = {"decisions": [], "prefs": {}}
             self.save()
+            db_clear(self.db)
 
     def prefs(self, eid: str) -> dict:
         p = self.data["prefs"].setdefault(eid, {})
@@ -95,8 +101,10 @@ class Learning:
     # ---------------------------------------------------------------- audit trail
     def record(self, entry: dict):
         with LOCK:
-            self.data["decisions"].append({"at": now_iso(), **entry})
+            row = {"at": now_iso(), **entry}
+            self.data["decisions"].append(row)
             self.save()
+            db_insert(row, self.db)
 
     def audit(self, eid: str) -> list:
         return [d for d in self.data["decisions"] if d.get("entity_id") == eid]
@@ -223,6 +231,30 @@ class Learning:
             s["confidence"] = round(min(0.97, s.get("confidence", 0.6) + 0.02 * min(p["approved"], 3)), 2)
         return s
 
+    # ---------------------------------------------------------------- best time to message
+    def reply_profile(self, eid: str, crm_window: str | None = None) -> dict:
+        """When this owner actually answers: the 2-hour slot (Helsinki time) with most replies, and the median
+        time from our message to their answer. Learned from every reply; the CRM window is only the prior."""
+        hours, lat, last_sent = [], [], None
+        for d in self.audit(eid):
+            if d.get("type") == "sent":
+                last_sent = d["at"]
+            elif d.get("type") in ("decision", "owner request", "review reply"):
+                t = local_dt(d["at"])
+                if t is None:
+                    continue
+                hours.append(t.hour)
+                if last_sent and d.get("type") == "decision":
+                    ls = local_dt(last_sent)
+                    if ls and t >= ls:
+                        lat.append((t - ls).total_seconds() / 60)
+        out = {"window": crm_window, "source": "CRM best_contact_window", "replies": len(hours),
+               "median_reply_min": int(statistics.median(lat)) if lat else None}
+        if len(hours) >= 3:
+            best = max(range(24), key=lambda h: (sum(1 for x in hours if x in (h, h + 1)), -h))
+            out.update(window=f"{best:02d}-{min(best + 2, 24):02d}", source=f"learned from {len(hours)} replies")
+        return out
+
     # ---------------------------------------------------------------- what Connect learned (console)
     def summary(self, eid: str) -> list:
         out = []
@@ -257,4 +289,57 @@ class Learning:
             out.append(f"Declined {k} without a clear reason -> confidence -{v}, we ask instead of suggesting.")
         if p.get("approved"):
             out.append(f"Approved {p['approved']} suggestion(s) as sent -> slightly more confident next time.")
+        rp = self.reply_profile(eid)
+        if rp["replies"] >= 3:
+            out.append(f"Best time to message: {rp['window'].replace('-', ':00–')}:00, {rp['source']}"
+                       + (f", median reply {rp['median_reply_min']} min" if rp["median_reply_min"] is not None else "")
+                       + " -> new messages go out in that window.")
         return out
+
+
+# ------------------------------------------------------------------ time + the decisions database
+def local_dt(iso: str):
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.fromisoformat(iso).astimezone(ZoneInfo(config.TZ))
+    except Exception:
+        return None
+
+
+def db_path() -> str:
+    return os.path.join(config.var_dir(), "decisions.db")
+
+
+def _db(path: str | None = None):
+    con = sqlite3.connect(path or db_path())
+    con.execute("CREATE TABLE IF NOT EXISTS decisions (id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT, entity_id TEXT, "
+                "type TEXT, date TEXT, decision TEXT, final_hours TEXT, channel TEXT, data TEXT)")
+    return con
+
+
+def db_insert(row: dict, path: str | None = None):
+    """Every decision also lands in SQLite: the one table a Connect UI would read (see /log and /api/decisions)."""
+    try:
+        with _db(path) as con:
+            con.execute("INSERT INTO decisions (at, entity_id, type, date, decision, final_hours, channel, data) "
+                        "VALUES (?,?,?,?,?,?,?,?)",
+                        (row.get("at"), row.get("entity_id"), row.get("type"), row.get("date"),
+                         row.get("decision"), row.get("final_hours"), row.get("channel") or row.get("transport"),
+                         json.dumps(row, ensure_ascii=False)))
+    except Exception:
+        pass  # the JSON audit trail stays the source of truth
+
+
+def db_clear(path: str | None = None):
+    try:
+        with _db(path) as con:
+            con.execute("DELETE FROM decisions")
+    except Exception:
+        pass
+
+
+def db_rows(eid: str | None = None, limit: int = 200, path: str | None = None) -> list:
+    with _db(path) as con:
+        con.row_factory = sqlite3.Row
+        q = "SELECT * FROM decisions" + (" WHERE entity_id=?" if eid else "") + " ORDER BY id DESC LIMIT ?"
+        return [dict(r) for r in con.execute(q, ((eid, limit) if eid else (limit,)))]

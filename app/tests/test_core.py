@@ -149,3 +149,27 @@ class ReviewUrgency(unittest.TestCase):
         good = {"rating": 5, "content": "Lovely coffee", "publisherDate": now - 10 * 86400000}
         self.assertGreaterEqual(urgency(bad, 1000, now)[0], 3)
         self.assertLess(urgency(good, 1000, now)[0], 3)
+
+
+class DecisionsAndBestTime(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.L = Learning(os.path.join(self.tmp, "learning.json"))
+
+    def test_decisions_go_to_sqlite(self):
+        from app.learning import db_rows
+        self.L.record({"entity_id": "E1", "type": "owner request", "date": "2026-12-03", "final_hours": "closed",
+                       "channel": "whatsapp chat"})
+        rows = db_rows("E1", path=self.L.db)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["final_hours"], "closed")
+        self.L.clear()
+        self.assertEqual(db_rows("E1", path=self.L.db), [])
+
+    def test_best_time_needs_three_replies(self):
+        self.assertEqual(self.L.reply_profile("E1", "12-16")["window"], "12-16")
+        for at in ("2026-11-02T05:10:00+00:00", "2026-11-03T05:40:00+00:00", "2026-11-04T06:20:00+00:00"):
+            self.L.data["decisions"].append({"at": at, "entity_id": "E1", "type": "decision", "channel": "whatsapp"})
+        rp = self.L.reply_profile("E1", "12-16")
+        self.assertEqual(rp["window"], "07-09")  # 05:10-06:20 UTC = 07:10-08:20 Helsinki
+        self.assertIn("learned from 3 replies", rp["source"])

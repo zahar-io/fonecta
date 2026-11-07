@@ -753,7 +753,7 @@ def api_busy_day(eid: str):
     ent = __import__("app.kitdata", fromlist=["entities"]).entities().get(eid, {})
     c = next(iter(reversed(e.cases_for(eid))), None)
     lang = c["lang"] if c else messages.lang_of(os.environ.get("DEMO_LANG") or "en")
-    first = os.environ.get("DEMO_FIRST") or (c or {}).get("first") or "there"
+    first = config.demo_first(eid, (c or {}).get("first") or "there")
     text, (yes, no) = messages.busy_text(lang, first, ent.get("name", eid), b)
     to = os.environ.get("WA_TO", "")
     res = _wa().send_buttons(to, text, [("bds", yes), ("bdk", no)])

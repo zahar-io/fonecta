@@ -453,7 +453,7 @@ def watch_check(eid: str) -> list:
             if k in w["seen"]:
                 continue
             w["seen"].append(k)
-            m = watch.nudge(os.environ.get("DEMO_FIRST") or "there", ent.get("name", eid), ev, url)
+            m = watch.nudge(config.demo_first(eid, "there"), ent.get("name", eid), ev, url)
             _wa().send_text(os.environ.get("WA_TO", ""), m)
             e.learning.record({"entity_id": eid, "type": "watched event", "date": ev["date"], "event": ev,
                                "url": url, "channel": "whatsapp"})
@@ -808,7 +808,7 @@ def shift_check(eid: str, force: bool = False) -> dict:
     if key in sent and not force:
         return {"gap": gap, "sent": False}
     ent = __import__("app.kitdata", fromlist=["entities"]).entities().get(eid, {})
-    first = os.environ.get("DEMO_FIRST") or "there"
+    first = config.demo_first(eid, "there")
     to = os.environ.get("WA_TO", "")
     text = shifts.alert_text(first, ent.get("name", eid), day, gap)
     res = _wa().send_buttons(to, text, [("shc", "Close tomorrow AM"), ("shk", "I'll sort it")])

@@ -27,6 +27,16 @@ TZ = "Europe/Helsinki"
 YEXT_V = "20261101"
 
 
+def demo_first(eid: str | None, default: str = "") -> str:
+    """DEMO_FIRST: one name for every business ("Mikko"), or per business ("FI-D0001=Mikko,FI-D0017=Aino");
+    a business not in the per-business list keeps its own contact name."""
+    v = (os.environ.get("DEMO_FIRST") or "").strip()
+    if "=" not in v:
+        return v or default
+    names = dict(p.split("=", 1) for p in v.split(",") if "=" in p)
+    return names.get(eid or "", "").strip() or default
+
+
 def var_dir() -> str:
     d = os.environ.get("APP_VAR_DIR") or os.path.join(APP_DIR, "var")
     os.makedirs(d, exist_ok=True)

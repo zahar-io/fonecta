@@ -123,9 +123,20 @@ def demo_state(eid: str = "FI-D0001"):
 
 
 @router.post("/demo/send")
-def demo_send(eid: str = "FI-D0001", via: str | None = None):
+def demo_send(eid: str = "FI-D0001", via: str | None = None, only: str | None = None):
+    """only=2027-01-01[,…]: send just those dates (one card per take for filming); the rest stay pending."""
+    e = _eng()
     c = _case(eid)
-    _eng().send(c["id"], via)
+    keep = set(only.split(",")) if only else None
+    held = [i for i in c["items"] if keep and i["status"] == "pending" and i["date"] not in keep]
+    for i in held:
+        i["status"] = "held"
+    try:
+        e.send(c["id"], via)
+    finally:
+        for i in held:
+            i["status"] = "pending"
+        e.save()
     return RedirectResponse(f"/demo?eid={eid}", 303)
 
 

@@ -242,7 +242,7 @@ class Engine:
         v = kitdata.views_last_30_days(eid)
         c = {"id": cid, "entity_id": eid, "name": ent["name"], "city": ent["address"]["city"],
              "segment": ent.get("c_segment"), "country": ent["meta"]["countryCode"],
-             "first": os.environ.get("DEMO_FIRST") or con["contact_first_name"],
+             "first": config.demo_first(eid, con["contact_first_name"]),
              "lang": messages.lang_of(os.environ.get("DEMO_LANG") or con["preferred_language"]),
              "channel_pref": con["preferred_channel"], "window": self.learning.reply_profile(
                  eid, con["best_contact_window"])["window"],

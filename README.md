@@ -106,4 +106,29 @@ See [docs/MESSAGES.md](docs/MESSAGES.md): verbatim output for fi/sv/nb/en, inclu
 | aiortc, PyAV (WhatsApp voice call) | BSD-3-Clause; PyAV wheels bundle FFmpeg under LGPL (not GPL) |
 | Helsinki LinkedEvents data | CC BY 4.0 |
 
-No GPL/AGPL components. GenAI used: Claude (Anthropic) via Claude Code, for code and copy, with every result checked by running it.
+No GPL/AGPL components.
+
+## Generative AI: where and why
+
+**Inside the product**
+- **Free-text owner replies** ("make it 9 to 13 on Christmas Eve", "close today, update everywhere"): Claude Haiku (Anthropic) turns the message into a structured request, with Gemini Flash-Lite (Google) as the fallback (`app/nlu.py`). The model only proposes; rules validate the output, and nothing is written to Yext without the owner's tap.
+- **Watched pages**: the same light model lists dated events from a page the owner asked us to watch. Page text is treated as data, and the output is validated (`app/watch.py`).
+- **Voice notes**: transcribed locally with Whisper (whisper.cpp on the same machine). The audio never goes to a cloud AI (`app/voice.py`).
+- **Not generative**: detection and suggestions (`brain/`) are a classic scikit-learn model trained on Fonecta's dataset, so every suggestion has a reason we can show.
+
+**Building it**
+- **Claude Code (Claude models, Anthropic)**: Zahar, Flovr's AI agent, wrote most of the code, tests, docs and copy during the event. Every result was checked by running it (unit tests, Fonecta's scorer, the real Yext sandbox and WhatsApp).
+- **Demo video**: AI-generated scenes (Kling and Seedance through Kie.ai) and a Gemini Live voice for the narration. All phone screens are real recordings of this app.
+
+## Security and privacy
+
+- **Data**: only the synthetic Fonecta/Since AI dataset and public Helsinki LinkedEvents. No real customer data.
+- **Secrets**: keys (Yext sandbox, WhatsApp, Gemini) come from environment variables, kept in the machine's keychain. None are in this repo or its history, and they don't appear in the video or deck.
+- **Owner control**: `Engine._write` refuses any write without an owner decision, a standing permission or an undo (unit-tested). Every decision is logged with who, when and through which channel.
+- **No-login links** are signed and expire (`app/links.py`). The ops console needs a key when it's reachable from outside.
+- **Messaging**: WhatsApp only after the owner messages first or through an approved template. Calls need the owner's call permission, and opt-outs are respected.
+- **AI input**: owner messages and watched pages are treated as data, not instructions; model output is validated before use.
+
+## Pre-existing work (not built at the event)
+
+Everything in this repo was built during the event, on top of Fonecta's starter kit (baseline, Yext mock, scorer, MIT). Kept apart and not part of this repo: Zahar IO, the agent platform that Zahar runs on, and Flovr's existing voice-call service, which `app/call.py` can optionally call.

@@ -69,7 +69,7 @@ Settings come only from env vars: `YEXT_BASE_URL` (`https://sbx-api.yextapis.com
 
 - An "owner's habitual offset" candidate (e.g. always closes 1 h early): −1 point, too noisy as a standalone candidate. It's kept inside the learning loop for edits instead.
 - Training on the 2025 back-test as well: no gain over 2026 dev alone.
-- Yext Suggestions and Analytics APIs on the sandbox: 403 for our app, so we kept the analytics from the dataset. The apply layer can switch to native Yext suggestions (`APPLY_MODE`).
+- Yext Suggestions and Analytics APIs: 403 on our sandbox; Fonecta confirmed (Discord, 7 Nov) both are out of scope for the challenge. Approvals live in our own flow with an audit trail, analytics come from the dataset.
 
 ## Customer with no history
 

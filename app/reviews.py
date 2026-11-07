@@ -12,7 +12,7 @@ from collections import Counter
 from datetime import datetime, timedelta
 
 BAD = {
-    "closed": ("kiinni", "suljettu", "stängt", "stengt", "closed"),
+    "closed": ("kiinni", "suljettu", "stängt", "stengt", "closed", "locked", "lukossa", "låst"),
     "price": ("kallis", "hinta", "dyrt", "dyr ", "expensive", "overpriced", "too much"),
     "slow": ("hidas", "odot", "jono", "långsam", "vänta", "kö ", "treg", "vente", "slow", "wait"),
     "rude": ("töykeä", "epäkohtelias", "otrevlig", "sur ", "uhøflig", "frekk", "rude", "unfriendly"),

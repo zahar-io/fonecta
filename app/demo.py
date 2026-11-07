@@ -90,6 +90,8 @@ def demo(eid: str = "FI-D0001"):
         left += (f"<div class=card><div class=k>5 · Apply · live from the Yext API</div>"
                  f"<pre><code>GET entities/{E(eid)} → hours.holidayHours\n{E(json.dumps(hh, ensure_ascii=False, indent=1))}</code></pre></div>"
                  f"<div class=card><div class=k>Learning</div><ul style='font-size:20px'>{learned}</ul></div>")
+    left += (f"<form method=post action='/api/reviews/new/{E(eid)}' style='margin-top:10px'>"
+             f"<button class='btn' style='background:#b3261e'>A new 1★ review arrives</button></form>")
     left += (f"<form method=post action='/demo/reset?eid={E(eid)}' style='margin-top:10px'>"
              f"<button class='btn g2'>Reset this business</button></form>")
     poll = ("<script>let s=%d;setInterval(async()=>{const r=await fetch('/demo/state?eid=%s');const j=await r.json();"

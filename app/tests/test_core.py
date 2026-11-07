@@ -139,3 +139,13 @@ class ChatEdit(unittest.TestCase):
         self.assertEqual(p("10-14, 17-22"), "10:00-14:00,17:00-22:00")
         self.assertEqual(p("Closed"), "closed")
         self.assertIsNone(p("maybe later"))
+
+
+class ReviewUrgency(unittest.TestCase):
+    def test_scores(self):
+        from app.review_monitor import urgency
+        now = 1_800_000_000_000
+        bad = {"rating": 1, "content": "Google said open but the door was locked", "publisherDate": now}
+        good = {"rating": 5, "content": "Lovely coffee", "publisherDate": now - 10 * 86400000}
+        self.assertGreaterEqual(urgency(bad, 1000, now)[0], 3)
+        self.assertLess(urgency(good, 1000, now)[0], 3)

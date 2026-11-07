@@ -440,6 +440,155 @@ def review_decide(link: str, a: str = Form(...), reply: str = Form("")):
     return page("Done", f"<div class=card>{E(rc['result'])}</div>", True)
 
 
+# ------------------------------------------------------------------ live review monitor
+REV_UI = {"head": "New review needs a reply", "why": "Why now: {why}.", "sugg": "Suggested reply:",
+          "btn": ("Post reply", "Edit", "Skip"), "type": "Type the reply you want to post:",
+          "confirm": "Post this reply?\n\n{r}", "posted": "Posted. Your reply is live under the review.",
+          "stored": "Approved and saved (the practice Yext has no review-reply endpoint, so it isn't public).",
+          "skipped": "OK, skipped. It stays in your weekly summary."}
+
+
+def _review_incoming(eid: str, r: dict):
+    """One new review: score it; urgent -> WhatsApp with a drafted reply; otherwise weekly summary."""
+    from . import review_monitor as rm
+    from . import reviews as rv
+    e = eng()
+    live = e.state.setdefault("rev_live", {})
+    if str(r["id"]) in live:
+        return
+    c = next((x for x in reversed(e.cases_for(eid))), None)
+    views = int((c or {}).get("views30") or 0)
+    score, why = rm.urgency(r, views)
+    lang = c["lang"] if c else "en"
+    name = (c or {}).get("name") or eid
+    d = rv.draft_reply(r, name, lang)
+    item = {"entity_id": eid, "review": r, "score": score, "why": why, "draft": d["reply"], "status": "summary",
+            "cid": (c or {}).get("id")}
+    live[str(r["id"])] = item
+    if score >= 3 and c and channels.wa_configured():
+        tok = links.sign({"rv": str(r["id"])})
+        text = (f"{'★' * int(r.get('rating') or 0)}{'☆' * (5 - int(r.get('rating') or 0))}  _{r.get('authorName', '')}_\n"
+                f"“{(r.get('content') or '').strip()[:400]}”\n\n{REV_UI['why'].format(why='; '.join(why))}\n\n"
+                f"*{REV_UI['sugg']}*\n{d['reply']}")
+        payload = {"messaging_product": "whatsapp", "to": _wa().recipient(c.get("to_phone")), "type": "interactive",
+                   "interactive": {"type": "button", "header": {"type": "text", "text": REV_UI["head"]},
+                                   "body": {"text": text[:1024]}, "footer": {"text": f"{name} · Connect"},
+                                   "action": {"buttons": [{"type": "reply", "reply": {"id": f"{k}:{tok}", "title": t}}
+                                                          for k, t in zip(("rp", "rx", "rk"), REV_UI["btn"])]}}}
+        res = _wa()._transport(f"{channels.GRAPH}/{_wa().phone_id}/messages", payload)
+        item["status"] = "sent"
+        _log(c, "review alert", text, {"ok": "error" not in res, "error": res.get("error")})
+    e.save()
+
+
+def _review_button(frm, kind, link):
+    e = eng()
+    try:
+        rid = links.verify(link)["rv"]
+    except Exception:
+        return
+    item = e.state.get("rev_live", {}).get(rid)
+    if not item or item["status"] not in ("sent", "editing", "confirm"):
+        return
+    c = e.case(item["cid"])
+    if kind == "rk":
+        item["status"] = "skipped"
+        _log(c, "review skipped", REV_UI["skipped"], _wa().send_text(frm, REV_UI["skipped"]))
+    elif kind == "rx":
+        item["status"] = "editing"
+        e.state.setdefault("rev_edit", {})[frm] = rid
+        _log(c, "review edit", REV_UI["type"], _wa().send_text(frm, REV_UI["type"]))
+    elif kind == "rp":
+        reply = item.get("final") or item["draft"]
+        try:
+            e.yext._req("POST", f"reviews/{item['review']['id']}/comments", body={"content": reply, "visibility": "PUBLIC"})
+            m = REV_UI["posted"]
+        except Exception:
+            m = REV_UI["stored"]
+        item.update(status="posted", final=reply)
+        e.learning.record({"entity_id": item["entity_id"], "type": "review reply", "review_id": rid,
+                           "decision": "posted", "draft": item["draft"], "final": reply, "channel": "whatsapp"})
+        _log(c, "review posted", m, _wa().send_text(frm, m))
+    e.save()
+
+
+def _review_edit_text(frm, text) -> bool:
+    e = eng()
+    rid = e.state.get("rev_edit", {}).pop(frm, None)
+    if not rid:
+        return False
+    item = e.state["rev_live"][rid]
+    item.update(final=text.strip(), status="confirm")
+    c = e.case(item["cid"])
+    tok = links.sign({"rv": rid})
+    _log(c, "review confirm", text, _wa().send_buttons(frm, REV_UI["confirm"].format(r=text.strip()),
+                                                         [(f"rp:{tok}", "Post reply"), (f"rk:{tok}", "Skip")]))
+    e.save()
+    return True
+
+
+@app.post("/api/reviews/new/{eid}")
+def api_review_new(eid: str, rating: int = 1, text: str = ""):
+    """Demo: a new review arrives right now (as the monitor would see it from the Yext Reviews API)."""
+    import time as _t
+    r = {"id": f"live-{int(_t.time())}", "locationId": eid, "rating": rating, "authorName": "Mikko K.",
+         "publisherId": "GOOGLEMYBUSINESS", "publisherDate": _t.time() * 1000,
+         "content": text or "Came on Saturday at 17:00. Google said open, but the door was locked. Wasted trip with the kids."}
+    _review_incoming(eid, r)
+    return RedirectResponse(f"/demo?eid={eid}", 303)
+
+
+def _review_poll():
+    """Background check: new reviews from the Yext Reviews API for businesses we talk to on WhatsApp."""
+    e = eng()
+    seen = e.state.setdefault("rev_seen", {})
+    for c in [x for x in e.cases() if any(o.get("channel") == "whatsapp" for o in x.get("outbox", []))]:
+        eid = c["entity_id"]
+        try:
+            rs = e.yext._req("GET", "reviews", {"locationIds": eid, "limit": 20}).get("response", {}).get("reviews", [])
+        except Exception:
+            continue
+        new = [r for r in rs if r.get("publisherDate", 0) > seen.get(eid, 0)]
+        if eid not in seen:  # first look: remember where we are, don't alert on history
+            seen[eid] = max([r.get("publisherDate", 0) for r in rs] or [0])
+            continue
+        for r in sorted(new, key=lambda r: r.get("publisherDate", 0)):
+            _review_incoming(eid, r)
+            seen[eid] = max(seen[eid], r.get("publisherDate", 0))
+    e.save()
+
+
+def _auto_calls():
+    """No answer within CALL_AFTER_MIN minutes of the first message -> one phone call (never twice per case)."""
+    from datetime import datetime as _dt, timedelta as _td
+    mins = float(os.environ.get("CALL_AFTER_MIN", "0") or 0)
+    if mins <= 0:
+        return
+    e = eng()
+    for c in e.cases():
+        if c["status"] != "sent" or c.get("called"):
+            continue
+        sent = [o["at"] for o in c.get("outbox", []) if o["kind"].startswith("suggestion")]
+        if sent and _dt.fromisoformat(min(sent)) < _dt.fromisoformat(
+                __import__("app.learning", fromlist=["now_iso"]).now_iso()) - _td(minutes=mins):
+            try:
+                e.urgent_call(c["id"], force=True)
+            except Exception:
+                pass
+
+
+def _background():
+    _review_poll()
+    _auto_calls()
+
+
+@app.on_event("startup")
+def _start_monitor():
+    if os.environ.get("REVIEW_MONITOR", "1") == "1":
+        from .review_monitor import Monitor
+        Monitor(_background, int(os.environ.get("REVIEW_POLL_S", "60"))).start()
+
+
 # ------------------------------------------------------------------ WhatsApp webhook
 @app.get("/webhook/whatsapp")
 def wa_verify(request: Request):
@@ -461,9 +610,15 @@ async def wa_hook(request: Request):
         if not bid or ":" not in bid:
             continue
         kind, link = bid.split(":", 1)
+        if kind in ("rp", "rx", "rk"):
+            _review_button(frm, kind, link)
+            continue
         try:
             body, c = load_link(link)
         except HTTPException:
+            continue
+        if kind in ("rp", "rx", "rk"):
+            _review_button(frm, kind, link)
             continue
         if kind in ("a", "d"):
             act = "approve" if kind == "a" else "decline"
@@ -616,6 +771,8 @@ def _request_button(frm, bid):
 
 def _edit_text(frm, text):
     from . import chat_edit
+    if _review_edit_text(frm, text):
+        return
     st = _edit_state().get(frm)
     if not st:
         return _free_text(frm, text)

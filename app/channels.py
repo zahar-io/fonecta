@@ -69,6 +69,12 @@ class WhatsAppCloudChannel(Channel):
 
     @staticmethod
     def recipient(to: str) -> str:
+        """Demo safety: CRM numbers are fake, so everything goes to WA_TO, except numbers listed in WA_ALLOW
+        (e.g. the backup approver's real phone)."""
+        allow = {x.strip().replace("+", "") for x in os.environ.get("WA_ALLOW", "").split(",") if x.strip()}
+        t = (to or "").replace("+", "").replace(" ", "")
+        if t and t in allow:
+            return t
         return (os.environ.get("WA_TO") or to or "").replace("+", "").replace(" ", "")
 
     @staticmethod

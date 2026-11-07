@@ -590,23 +590,33 @@ class Engine:
             if level >= len(chain):
                 return {"case": cid, "escalated": False, "why": "no more approvers: Connect support takes it"}
             who = chain[level]
-            msg = dict(self.compose(c))
-            if c["first"]:
-                nm = who.get("name", "").split(" ")[0]
-                for k in ("body", "text"):
-                    head, _, rest = msg[k].partition("\n")
-                    msg[k] = head.replace(c["first"], nm) + "\n" + rest
+            ch = self._chan(c)
+            nm = (who.get("name") or "").split(" ")[0]
             note = {"fi": f"{c['first'] or c['name']} ei ole vielä vastannut, joten kysymme sinulta.",
                     "sv": f"{c['first'] or c['name']} har inte svarat än, så vi frågar dig.",
                     "nb": f"{c['first'] or c['name']} har ikke svart ennå, så vi spør deg.",
                     "en": f"{c['first'] or c['name']} hasn't answered yet, so we're asking you."}[c["lang"]]
-            text = msg["text"].replace("\n", "\n" + note + "\n", 1)
-            ch = self._chan(c)
-            tok = c["token"]
-            res = ch.send_suggestion(who.get("phone"), dict(msg, body=msg["body"].replace("\n", "\n" + note + "\n", 1), text=text),
-                                     [f"a:{tok}", f"e:{tok}", f"d:{tok}"])
-            c["outbox"].append({"at": now_iso(), "kind": f"escalation to {who.get('name')}",
-                                "channel": self._chan_name(c), "text": text, "result": res})
+            open_items = [i for i in c["items"] if i["status"] == "sent" and i["action"] == "SUGGEST"]
+            res, text = None, ""
+            for grp in (self.groups(open_items) if ch.real else [open_items]):
+                ds = [i["date"] for i in grp]
+                t1 = tokens.sign({"c": c["id"], "e": c["entity_id"], "ds": ds})
+                m1 = messages.compose(dict(self.ctx(c), first=nm or c["first"]), grp, f"{config.public_base()}/s/{t1}")
+                for k in ("body", "text"):
+                    m1[k] = m1[k].replace("\n", "\n" + note + "\n", 1)
+                if m1.get("wa"):
+                    for k in ("body", "body_with_card"):
+                        if m1["wa"].get(k):
+                            m1["wa"][k] = m1["wa"][k].replace("\n", "\n" + note + "\n", 1)
+                    try:
+                        from .cards import hours_card
+                        m1["wa"]["image"] = hours_card(c["name"], [dict(i, entity_id=c["entity_id"]) for i in grp], c["lang"])
+                    except Exception:
+                        pass
+                res = ch.send_suggestion(who.get("phone"), m1, [f"a:{t1}", f"e:{t1}", f"d:{t1}"])
+                text = m1["text"]
+                c["outbox"].append({"at": now_iso(), "kind": f"escalation to {who.get('name')} " + ", ".join(ds),
+                                    "channel": self._chan_name(c), "text": text, "result": res})
             c["escalation"] = level + 1
             self.learning.record({"entity_id": c["entity_id"], "case_id": cid, "type": "escalated",
                                   "to": who.get("name"), "level": level + 1})

@@ -5,6 +5,7 @@ Run:  .venv/bin/python -m uvicorn app.main:app --port 8800
 from __future__ import annotations
 
 import html
+import re
 import json
 import os
 
@@ -558,23 +559,43 @@ def _review_poll():
     e.save()
 
 
+def _in_window(win: str) -> bool:
+    from datetime import datetime as _dt
+    try:
+        from zoneinfo import ZoneInfo
+        h = _dt.now(ZoneInfo(config.TZ)).hour
+    except Exception:
+        h = _dt.now().hour
+    a, b = (int(x) for x in win.split("-"))
+    return a <= h < b
+
+
 def _auto_calls():
-    """No answer within CALL_AFTER_MIN minutes of the first message -> one phone call (never twice per case)."""
+    """Per business (its settings): no answer within call_after_min -> one call; still no answer
+    backup_after_min after the call -> the same suggestion goes to the backup approver. Only inside the send window."""
     from datetime import datetime as _dt, timedelta as _td
-    mins = float(os.environ.get("CALL_AFTER_MIN", "0") or 0)
-    if mins <= 0:
+    from . import settings as S
+    if os.environ.get("AUTO_CALLS", "0") != "1":
         return
     e = eng()
+    now = _dt.fromisoformat(__import__("app.learning", fromlist=["now_iso"]).now_iso())
     for c in e.cases():
-        if c["status"] != "sent" or c.get("called"):
+        if c["status"] != "sent":
+            continue
+        st = S.get(e.state, c["entity_id"])
+        if not _in_window(st["window"]):
             continue
         sent = [o["at"] for o in c.get("outbox", []) if o["kind"].startswith("suggestion")]
-        if sent and _dt.fromisoformat(min(sent)) < _dt.fromisoformat(
-                __import__("app.learning", fromlist=["now_iso"]).now_iso()) - _td(minutes=mins):
-            try:
+        if not sent:
+            continue
+        try:
+            if not c.get("called") and _dt.fromisoformat(min(sent)) < now - _td(minutes=st["call_after_min"]):
                 e.urgent_call(c["id"], force=True)
-            except Exception:
-                pass
+            elif c.get("called") and not c.get("escalation") and \
+                    _dt.fromisoformat(c["called"]) < now - _td(minutes=st["backup_after_min"]):
+                e.escalate(c["id"], force=True)
+        except Exception:
+            pass
 
 
 def _background():
@@ -641,6 +662,8 @@ async def wa_hook(request: Request):
             _edit_button(frm, bid)
         elif bid in ("rs", "rc"):
             _request_button(frm, bid)
+        elif bid in ("ss", "sc"):
+            _settings_button(frm, bid)
     for frm, text in channels.parse_texts(payload):
         _edit_text(frm, text)
     for frm, media in channels.parse_audio(payload):
@@ -713,9 +736,59 @@ def _days_text(c, ds):
                      for d in ds)
 
 
+def _monitored(c):
+    return [l.get("publisherName") or l.get("publisherId") for l in eng().where_live(c["entity_id"])]
+
+
+def _backup_label(eid):
+    ch = eng().approvers(eid)
+    return f"{ch[0].get('name')} ({ch[0].get('phone')})" if ch else None
+
+
+def _settings_text(frm, text, c) -> bool:
+    from . import settings as S
+    e = eng()
+    t = text.strip().lower()
+    if re.fullmatch(r"(/?settings|rules|my settings|preferences|asetukset)\??", t):
+        m = S.render(S.get(e.state, c["entity_id"]), _monitored(c), _backup_label(c["entity_id"]))
+        _log(c, "settings", m, _wa().send_text(frm, m))
+        e.save()
+        return True
+    from . import chat_edit
+    if chat_edit.parse_request(text, config.SNAPSHOT)[0]:
+        return False  # a date in it -> it's an hours request, not a settings change
+    ch = S.parse_change(text, _monitored(c))
+    if not ch:
+        return False
+    e.state.setdefault("wa_set", {})[frm] = {"cid": c["id"], "ch": ch}
+    m = "Change your settings: " + S.describe(ch) + "?"
+    _log(c, "settings confirm", m, _wa().send_buttons(frm, m, [("ss", "Save"), ("sc", "Cancel")]))
+    e.save()
+    return True
+
+
+def _settings_button(frm, bid):
+    from . import settings as S
+    e = eng()
+    req = e.state.setdefault("wa_set", {}).pop(frm, None)
+    if not req:
+        return
+    c = e.case(req["cid"])
+    if bid == "ss":
+        S.apply(e.state, c["entity_id"], req["ch"])
+        m = "Saved ✅\n\n" + S.render(S.get(e.state, c["entity_id"]), _monitored(c), _backup_label(c["entity_id"]))
+    else:
+        m = "OK, nothing changed."
+    _log(c, "settings " + ("saved" if bid == "ss" else "cancelled"), m, _wa().send_text(frm, m))
+    e.save()
+
+
 def _free_text(frm, text):
     from . import chat_edit
     e = eng()
+    oc = _owner_case(frm)
+    if oc and not e.state.get("wa_req", {}).get(frm) and _settings_text(frm, text, oc):
+        return
     req = e.state.setdefault("wa_req", {}).get(frm)
     c = e.case(req["cid"]) if req else _owner_case(frm)
     if not c:

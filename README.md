@@ -18,7 +18,7 @@ python $FONECTA_KIT/mock_api/server.py &                          # Yext mock on
 .venv/bin/python brain/model.py                                   # trains, writes predictions_2026.csv (+ explained CSV)
 BRAIN_PREDICTIONS=$PWD/outputs/predictions_2026_explained.csv \
   .venv/bin/python -m uvicorn app.main:app --port 8800            # ops console: http://localhost:8800
-.venv/bin/python -m unittest discover app/tests                   # 20 tests, no network
+.venv/bin/python -m unittest discover app/tests                   # 22 tests, no network
 ```
 
 Settings come only from env vars: `YEXT_BASE_URL` (`https://sbx-api.yextapis.com/v2` for the team sandbox), `YEXT_API_KEY`,
@@ -47,10 +47,10 @@ Settings come only from env vars: `YEXT_BASE_URL` (`https://sbx-api.yextapis.com
 - **Staff shifts:** the evening before, Connect checks tomorrow's schedule from a shift platform and tells the owner if nobody has claimed the opening shift: close the morning on Google, or "I'll sort it". The schedule here is synthetic, in the shape Planday/Quinyx expose (`app/shifts.py`, `app/data/shifts_demo.json`).
 - **Watched pages:** the owner writes "watch https://… for events near my café"; every 6 h Connect re-reads the page, a light model lists the dated events (page text is treated as data, output validated), and each new event reaches the owner once (`app/watch.py`).
 
-- **Escalation (hierarchy):** if there's no answer within `ESCALATE_HOURS` (24 h), the same suggestion goes to the next approver from `app/var/approvers.json`. Whoever taps first decides, and the audit trail records who.
+- **Escalation (hierarchy):** no answer within the owner's "call after" setting (30 min by default) → Connect calls the owner; still nothing → a second call to the owner; still nothing → the same suggestion is texted to the backup approver from `app/var/approvers.json`, and the backup gets one call. Whoever taps first decides, and the audit trail records who. The console's manual escalation (`ESCALATE_HOURS`, 24 h) is still there.
 - **Urgent call:** a real **WhatsApp voice call** (Cloud API Calling, WebRTC via aiortc) that speaks the suggestion, after the owner granted call permission; a spoken voice note is the fallback.
-- **Urgent call (other transports):** if the date is within 48 h and the owner has been silent for 4 h, one voice call explains the suggestion and asks them to tap Approve. A call never decides by itself. `app/call.py` offers preview mode or Flovr's existing voice service (pre-existing, not part of this repo).
-- **Reviews (extensibility):** a bad review gets a reply drafted in the review's own language (fi/sv/nb/en). The owner posts, edits or skips (no login), and the reply goes to Yext's Reviews API. Good reviews feed a weekly summary of what people praised. `app/reviews.py`.
+- **Urgent call (other transports):** a voice call explains the suggestion and asks them to tap Approve. A call never decides by itself. `app/call.py` offers preview mode or Flovr's existing voice service (pre-existing, not part of this repo).
+- **Reviews (extensibility):** a bad review gets a reply drafted in the review's own language (fi/sv/nb/en). The owner posts, edits or skips (no login), and the reply goes to Yext's Reviews API. Every review feeds a weekly summary: count, average, good / mixed / bad split, what people praised and what they complained about. `app/reviews.py`.
 - **Live events:** "stay open later?" questions from Helsinki LinkedEvents (live). See below.
 - **Listing preview:** after approving, the owner sees how their special hours will show, labelled as a preview.
 - **WhatsApp:** one message per decision (back-to-back days or one event share a message) with a header card; **Edit happens in the chat**: the owner types "8-14" / "10am-4pm" / "closed", Connect confirms, and nothing is saved before the Save tap. Interactive buttons inside the 24 h window, a template mode for business-initiated messages, and a webhook. See [docs/WHATSAPP.md](docs/WHATSAPP.md).

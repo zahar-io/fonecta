@@ -377,7 +377,7 @@ def _reviews_for(eid):
 
 @app.post("/api/reviews/{eid}")
 def api_reviews(eid: str):
-    """Newest unanswered bad review -> draft reply -> owner message; plus the weekly summary of good ones."""
+    """Newest unanswered bad review -> draft reply -> owner message; plus the weekly summary of all reviews."""
     from datetime import datetime as _dt
     from . import reviews as rv
     e = eng()
@@ -573,8 +573,9 @@ def _in_window(win: str) -> bool:
 
 
 def _auto_calls():
-    """Per business (its settings): no answer within call_after_min -> one call; still no answer
-    backup_after_min after the call -> the same suggestion goes to the backup approver. Only inside the send window."""
+    """Per business (its settings): no answer within call_after_min -> call the owner; still nothing call_after_min
+    later -> call the owner a second time; still nothing backup_after_min after that -> the same suggestion is texted
+    to the backup approver and the backup gets one call. Only inside the send window. Calls never decide."""
     from datetime import datetime as _dt, timedelta as _td
     from . import settings as S
     if os.environ.get("AUTO_CALLS", "0") != "1":
@@ -591,11 +592,17 @@ def _auto_calls():
         if not sent:
             continue
         try:
-            if not c.get("called") and _dt.fromisoformat(min(sent)) < now - _td(minutes=st["call_after_min"]):
+            n = c.get("owner_calls", 1 if c.get("called") else 0)
+            if n == 0 and _dt.fromisoformat(min(sent)) < now - _td(minutes=st["call_after_min"]):
                 e.urgent_call(c["id"], force=True)
-            elif c.get("called") and not c.get("escalation") and \
+            elif 0 < n < e.OWNER_CALLS and _dt.fromisoformat(c["called"]) < now - _td(minutes=st["call_after_min"]):
+                e.urgent_call(c["id"], force=True)
+            elif n >= e.OWNER_CALLS and not c.get("escalation") and \
                     _dt.fromisoformat(c["called"]) < now - _td(minutes=st["backup_after_min"]):
-                e.escalate(c["id"], force=True)
+                r = e.escalate(c["id"], force=True)
+                chain = e.approvers(c["entity_id"])
+                if r.get("escalated") and chain:
+                    e.urgent_call(c["id"], force=True, backup=chain[0])
         except Exception:
             pass
 

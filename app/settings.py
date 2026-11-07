@@ -32,8 +32,8 @@ def render(s: dict, monitored: list, backup: str | None) -> str:
     off = [m for m in monitored if m in s["monitor_off"]]
     a, b = s["window"].split("-")
     lines = ["*Your Connect settings*", "",
-             f"1. *Call* after *{s['call_after_min']} min* without an answer",
-             f"2. *Backup approver*: {backup or 'none'}" + (f", asked *{s['backup_after_min']} min* after the call" if backup else ""),
+             f"1. *Call* after *{s['call_after_min']} min* without an answer, and once more {s['call_after_min']} min later",
+             f"2. *Backup approver*: {backup or 'none'}" + (f", texted and called *{s['backup_after_min']} min* after the second call" if backup else ""),
              f"3. *Hours to send messages*: *{int(a)}–{int(b)}*",
              f"4. *Reviews summary*: *{'ON' if s['summary'] else 'OFF'}*" + (f", {s['summary_every']}" if s["summary"] else ""),
              f"5. *Monitoring* ({len(on)}): " + ", ".join(on) + (f"\n   _paused: {', '.join(off)}_" if off else ""),
@@ -84,7 +84,7 @@ def describe(ch: dict) -> str:
         if k == "call_after_min":
             out.append(f"call after *{v} min*")
         elif k == "backup_after_min":
-            out.append(f"ask the backup *{v} min* after the call")
+            out.append(f"text and call the backup *{v} min* after the second call")
         elif k == "window":
             a, b = v.split("-")
             out.append(f"send messages *{int(a)}–{int(b)}*")

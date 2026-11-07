@@ -2,7 +2,7 @@
 
 * A new bad review (<= 2 stars, or a complaint keyword) -> the owner gets it with a ready reply in the review's
   language -> Post / Edit / Skip, no login -> the reply goes to Yext (POST /reviews/{id}/comments).
-* Good reviews -> a weekly summary: count, average, what people praised.
+* Every review -> a weekly summary: count, average, good / mixed / bad split, what people praised and what they complained about.
 Replies are template-based on purpose: predictable, in fi/sv/nb/en, never inventing facts about the business.
 """
 from __future__ import annotations
@@ -67,14 +67,14 @@ REPLY = {
 }
 OWNER = {
     "fi": ("Uusi {stars}★ arvio ({who}): ”{text}”", "Ehdotettu vastaus:", "[Julkaise] [Muokkaa] [Ohita]",
-           "Arviot viikolla {start}–{end}: {n} kpl, keskiarvo {avg}★. Kehuttiin eniten: {top}.",
+           "Arviot viikolla {start}–{end}: {n} kpl, keskiarvo {avg}★ ({good} hyvää, {mid} neutraalia, {bad} huonoa). Kehuttiin: {top}. Moitittiin: {low}.",
            "Ei uusia arvioita tällä viikolla."),
     "sv": ("Ny {stars}★-recension ({who}): ”{text}”", "Förslag på svar:", "[Publicera] [Ändra] [Hoppa över]",
-           "Recensioner {start}–{end}: {n} st, snitt {avg}★. Mest beröm för: {top}.", "Inga nya recensioner i veckan."),
+           "Recensioner {start}–{end}: {n} st, snitt {avg}★ ({good} bra, {mid} neutrala, {bad} dåliga). Beröm för: {top}. Klagomål på: {low}.", "Inga nya recensioner i veckan."),
     "nb": ("Ny {stars}★-anmeldelse ({who}): «{text}»", "Forslag til svar:", "[Publiser] [Endre] [Hopp over]",
-           "Anmeldelser {start}–{end}: {n} stk, snitt {avg}★. Mest skryt for: {top}.", "Ingen nye anmeldelser denne uken."),
+           "Anmeldelser {start}–{end}: {n} stk, snitt {avg}★ ({good} gode, {mid} nøytrale, {bad} dårlige). Skryt for: {top}. Klager på: {low}.", "Ingen nye anmeldelser denne uken."),
     "en": ("New {stars}★ review ({who}): \"{text}\"", "Suggested reply:", "[Post] [Edit] [Skip]",
-           "Reviews {start}–{end}: {n}, average {avg}★. Most praised: {top}.", "No new reviews this week."),
+           "Reviews {start}–{end}: {n}, average {avg}★ ({good} good, {mid} mixed, {bad} bad). Praised: {top}. Complaints: {low}.", "No new reviews this week."),
 }
 TOPIC_NAMES = {
     "fi": {"staff": "henkilökunta", "coffee": "kahvi", "food": "ruoka", "atmosphere": "tunnelma", "value": "hinta-laatu",
@@ -85,6 +85,16 @@ TOPIC_NAMES = {
            "speed": "farten"},
     "en": {"staff": "staff", "coffee": "coffee", "food": "food", "atmosphere": "atmosphere", "value": "value",
            "speed": "speed"},
+}
+BAD_NAMES = {
+    "fi": {"closed": "kiinni vaikka piti olla auki", "price": "hinnat", "slow": "odotus", "rude": "palvelu",
+           "quality": "laatu"},
+    "sv": {"closed": "stängt fast det skulle vara öppet", "price": "priserna", "slow": "väntan", "rude": "bemötandet",
+           "quality": "kvaliteten"},
+    "nb": {"closed": "stengt selv om det skulle være åpent", "price": "prisene", "slow": "ventetiden",
+           "rude": "betjeningen", "quality": "kvaliteten"},
+    "en": {"closed": "closed when listed open", "price": "prices", "slow": "waiting", "rude": "rude service",
+           "quality": "quality"},
 }
 
 
@@ -136,8 +146,13 @@ def weekly_summary(reviews: list, owner_lang: str, end: datetime) -> str:
     if not wk:
         return o[4]
     avg = sum(r.get("rating") or 0 for r in wk) / len(wk)
+    stars = [r.get("rating") or 0 for r in wk]
     c = Counter(t for r in wk if (r.get("rating") or 0) >= 4 for t in topics(r.get("content"), GOOD))
     names = TOPIC_NAMES.get(owner_lang, TOPIC_NAMES["en"])
     top = ", ".join(f"{names[k]} ({n})" for k, n in c.most_common(3)) or "–"
+    cb = Counter(t for r in wk if (r.get("rating") or 0) <= 3 or is_bad(r) for t in topics(r.get("content"), BAD))
+    bn = BAD_NAMES.get(owner_lang, BAD_NAMES["en"])
+    low = ", ".join(f"{bn[k]} ({n})" for k, n in cb.most_common(3)) or "–"
     return o[3].format(start=start.strftime("%d.%m."), end=end.strftime("%d.%m."), n=len(wk), avg=f"{avg:.1f}",
-                       top=top)
+                       top=top, low=low, good=sum(s >= 4 for s in stars), mid=sum(s == 3 for s in stars),
+                       bad=sum(s <= 2 for s in stars))

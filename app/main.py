@@ -600,6 +600,79 @@ def _auto_calls():
             pass
 
 
+def _watch_text(frm, text, c) -> bool:
+    """'watch https://… for events' in the chat: remember the page and check it now."""
+    from . import watch
+    url = watch.wants_watch(text)
+    if not url:
+        return False
+    e = eng()
+    w = e.state.setdefault("watch", {}).setdefault(c["entity_id"], {"pages": [], "seen": []})
+    if url not in w["pages"]:
+        w["pages"].append(url)
+    m = (f"OK, I'm watching {url} for you. When an event is coming up near {c['name']}, you'll hear it from me "
+         f"first. Say \"stop watching\" to end it.")
+    _log(c, "watch added", m, _wa().send_text(frm, m))
+    e.learning.record({"entity_id": c["entity_id"], "type": "watch added", "url": url, "channel": "whatsapp"})
+    e.save()
+    watch_check(c["entity_id"])
+    return True
+
+
+def watch_check(eid: str) -> list:
+    """Read every watched page for this business; message the owner about new events (once each)."""
+    from datetime import datetime as _dt
+    from zoneinfo import ZoneInfo
+    from . import nlu, watch
+    e = eng()
+    w = e.state.get("watch", {}).get(eid)
+    if not w:
+        return []
+    today = _dt.now(ZoneInfo(config.TZ)).date()
+    ent = __import__("app.kitdata", fromlist=["entities"]).entities().get(eid, {})
+    sent = []
+    for url in list(w["pages"]):
+        try:
+            evs = watch.extract(watch.page_text(url), today, nlu._ask_claude)
+        except Exception:
+            continue
+        for ev in evs:
+            k = watch.event_id(ev)
+            if k in w["seen"]:
+                continue
+            w["seen"].append(k)
+            m = watch.nudge(os.environ.get("DEMO_FIRST") or "there", ent.get("name", eid), ev, url)
+            _wa().send_text(os.environ.get("WA_TO", ""), m)
+            e.learning.record({"entity_id": eid, "type": "watched event", "date": ev["date"], "event": ev,
+                               "url": url, "channel": "whatsapp"})
+            sent.append(ev)
+            if len(sent) >= 3:
+                break
+    w["checked"] = __import__("app.learning", fromlist=["now_iso"]).now_iso()
+    e.save()
+    return sent
+
+
+@app.post("/api/watch-now/{eid}")
+def api_watch_now(eid: str):
+    return JSONResponse({"sent": watch_check(eid)})
+
+
+def _watch_poll():
+    """Every 6 hours, re-read the watched pages."""
+    from datetime import datetime as _dt, timedelta as _td
+    e = eng()
+    for eid, w in (e.state.get("watch") or {}).items():
+        last = w.get("checked")
+        try:
+            if last and _dt.fromisoformat(last) > _dt.fromisoformat(
+                    __import__("app.learning", fromlist=["now_iso"]).now_iso()) - _td(hours=6):
+                continue
+            watch_check(eid)
+        except Exception:
+            pass
+
+
 def _shift_evening():
     """Once an evening (19:00-21:00 Helsinki), check tomorrow's opening shift for every business with a schedule."""
     if os.environ.get("SHIFT_CHECK", "1") != "1" or not _in_window("19-21"):
@@ -617,6 +690,7 @@ def _background():
     _review_poll()
     _auto_calls()
     _shift_evening()
+    _watch_poll()
 
 
 @app.on_event("startup")
@@ -809,6 +883,8 @@ def _free_text(frm, text):
     from . import chat_edit
     e = eng()
     oc = _owner_case(frm)
+    if oc and _watch_text(frm, text, oc):
+        return
     if oc and not e.state.get("wa_req", {}).get(frm) and _settings_text(frm, text, oc):
         return
     req = e.state.setdefault("wa_req", {}).get(frm)

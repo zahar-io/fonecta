@@ -201,3 +201,19 @@ class ExtraChannels(unittest.TestCase):
         self.assertEqual(parse_sms_reply(" 1 ")[0], "approve")
         self.assertEqual(parse_sms_reply("Ei")[0], "decline")
         self.assertEqual(parse_sms_reply("open 9 to 13"), ("text", "open 9 to 13"))
+
+
+class Watch(unittest.TestCase):
+    def test_wants_watch(self):
+        from app.watch import wants_watch
+        self.assertEqual(wants_watch("can you watch https://example.org/events. for events near my cafe"),
+                         "https://example.org/events")
+        self.assertIsNone(wants_watch("set 16-22 on 2nd December"))
+
+    def test_extract_validates(self):
+        from datetime import date
+        from app.watch import extract
+        fake = lambda p: '{"events":[{"title":"Jazz night","date":"2026-11-20","time":"19:00","place":"Park"},' \
+                         '{"title":"Old","date":"2025-01-01"},{"title":"","date":"2026-11-21"},{"title":"x","date":"bad"}]}'
+        evs = extract("page", date(2026, 11, 7), fake)
+        self.assertEqual([e["title"] for e in evs], ["Jazz night"])

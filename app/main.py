@@ -17,6 +17,8 @@ from .hours import is_valid, nice
 
 app = FastAPI(title="Connect Suggests – Flovr")
 ENGINE: Engine | None = None
+from .demo import router as demo_router  # noqa: E402
+app.include_router(demo_router)
 PUBLIC_PREFIXES = ("/s/", "/r/", "/webhook/")
 
 

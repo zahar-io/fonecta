@@ -6,7 +6,7 @@ from features import KIT, span, hm
 sys.path.insert(0,KIT+'/evaluation'); import evaluate as E
 from sklearn.model_selection import GroupKFold
 from sklearn.ensemble import HistGradientBoostingClassifier as HC, HistGradientBoostingRegressor as HR
-SRC=["rev_close","mall","ly1","ly2","ps1","ps2","peer_special","reg_open_peer_close"]
+SRC=["sun","sat","ly_mode","rev_close","mall","ly1","ly2","ps1","ps2","peer_special","reg_open_peer_close"]
 def fmt(m):
     m%=1440; return f"{m//60:02d}:{m%60:02d}"
 def mk(o,c):

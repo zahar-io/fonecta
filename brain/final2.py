@@ -64,6 +64,6 @@ with open(out,"w",newline="",encoding="utf-8") as g, open(expl,"w",newline="",en
         n[(a,basis)]+=1
         if a!="NO_ACTION": w.writerow([m["entity_id"],m["date"],a,h,round(c,3)])
         w2.writerow([m["entity_id"],m["date"],m["key"],a,h,round(c,3),basis or "",m["shown"],*[round(float(x),3) for x in P[i]],json.dumps(m["cands"],ensure_ascii=False)])
-json.dump({"model":"v2.1 (T403): calibrated 3-model ensemble (g1cal, g1calc, v3cal)","thr":thr,
+json.dump({"model":"v2.1 (T403): calibrated 3-model ensemble (h1cal, h1calc, v3hcal)","thr":thr,
            "counts":{f"{k[0]}:{k[1]}":v for k,v in n.items()}},open(os.path.join(M.HERE,"report.json"),"w"),indent=1)
 print(n.most_common()); print(out)

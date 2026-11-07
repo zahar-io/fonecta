@@ -11,6 +11,9 @@ def load(s):
         Xe=pickle.load(open(f'/tmp/t403_Xe{s}.pkl','rb')); X=pd.concat([X.reset_index(drop=True),Xe],axis=1)
         if os.path.exists(f'/tmp/t403_Xa{s}.pkl') and os.environ.get('XA','1')=='1':
             X=pd.concat([X,pickle.load(open(f'/tmp/t403_Xa{s}.pkl','rb'))],axis=1)
+        if os.path.exists(f'/tmp/t403_Xb{s}.pkl') and os.environ.get('XB','1')=='1':
+            F,C=pickle.load(open(f'/tmp/t403_Xb{s}.pkl','rb')); X=pd.concat([X,F],axis=1)
+            for m,c in zip(meta,C): m['cands'].update(c)
         add_rev_cands(X,meta)
     L=M.labels(s)
     dev=[i for i,m in enumerate(meta) if (m['entity_id'],m['date']) in L]

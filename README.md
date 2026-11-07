@@ -66,8 +66,10 @@ Settings come only from env vars: `YEXT_BASE_URL` (`https://sbx-api.yextapis.com
 | v1 brain, 2025 back-test out-of-fold | 59.3 | 0.83 | 0.68 | 478 |
 | v2 brain, dev 2026 out-of-fold | 64.3 | 0.84 | 0.72 | 355 |
 | v2 brain, 2025 back-test out-of-fold | 62.3 | 0.84 | 0.69 | 361 |
-| **v2.1 brain (calibrated), dev 2026 out-of-fold** | **64.6** | 0.84 | 0.72 | 351 |
-| **v2.1 brain (calibrated), 2025 back-test out-of-fold** | **62.9** | 0.84 | 0.71 | 402 |
+| v2.1 brain (calibrated), dev 2026 out-of-fold | 64.6 | 0.84 | 0.72 | 351 |
+| v2.1 brain (calibrated), 2025 back-test out-of-fold | 62.9 | 0.84 | 0.71 | 402 |
+| **v2.2 brain, dev 2026 out-of-fold** | **65.1** | 0.82 | 0.74 | 363 |
+| **v2.2 brain, 2025 back-test out-of-fold** | **63.0** | 0.84 | 0.71 | 386 |
 
 Protocol: 5-fold GroupKFold by business. Every scored row comes from a business the model didn't train on, in either
 season. The two decision thresholds for one season are picked on the other season's out-of-fold sweep, never on
@@ -98,6 +100,12 @@ scored with the kit's `evaluation/evaluate.py`.
   as state features, as hours candidates and as candidate features. Training rows get the statistics from inner
   folds, because leave-one-out leaked the label (first try: 60.9).
 - The ensemble is 3 calibrated models (g1cal, g1calc, v3cal): `brain/final2.py`.
+
+**v2.2 (T403 round 3)** (`brain/extra2.py`) adds the owner's own Sunday and Saturday regular hours and their most
+common open entry last season as hours candidates: on many holidays a business simply runs its weekend hours. It
+also adds the owner's state on each holiday last season as separate features, because habits correlate across
+holidays (closed on Father's Day goes with closed on Boxing Day at 0.63). Same 3-model calibrated ensemble (h1cal,
+h1calc, v3hcal): `brain/run3.sh`, then `brain/run3b.sh` (thresholds closed 0.1, open -0.1 from the 2025 sweep).
 
 Tried and not kept: a low-confidence FLAG (+0.06, not worth confusing "flag" in the app); adding the 2025 season as
 training rows (worse in both seasons); bigger or slower trees without calibration.

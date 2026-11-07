@@ -683,7 +683,7 @@ def _voice(frm, media_id):
     c = _owner_case(frm)
     lang = c["lang"] if c else "en"
     audio = voice.download(media_id)
-    text = voice.transcribe(audio, "auto" if lang != "en" else "en") if audio else None
+    text = voice.transcribe(audio, "auto") if audio else None
     if c:
         m = HEARD[lang].format(t=text) if text else UNHEARD[lang]
         _log(c, "voice heard", m, _wa().send_text(frm, m))

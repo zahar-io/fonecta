@@ -1,7 +1,7 @@
 #!/bin/bash
 # Rebuilds the v2.3 brain (dev 65.45 / back-test 63.50) and predictions_2026.csv from Fonecta's kit.
 # Usage, from the repo root:  FONECTA_KIT=/path/to/FONECTA_CONNECT_SUGGESTS_2026 bash brain/train.sh
-# Intermediate caches go to /tmp/fonecta_brain/. Needs a few GB of RAM; about 40 min on an M-series Mac.
+# Intermediate caches go to /tmp/fonecta_brain/. Needs a few GB of RAM; about 25 min on an M-series Mac Mini.
 set -eo pipefail
 : "${FONECTA_KIT:?set FONECTA_KIT to the starter kit folder}"
 ROOT=$(cd "$(dirname "$0")/.." && pwd)

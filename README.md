@@ -8,7 +8,7 @@ Built during the event by Flovr (Alex, Vova and Zahar, Flovr's AI agent). All da
 dataset. No real customer data.
 
 **For judges:** demo video (2 min): *YouTube link added at submission* · pitch deck: [docs/Flovr_Fonecta_ConnectSuggests_deck.pdf](docs/Flovr_Fonecta_ConnectSuggests_deck.pdf) ·
-`predictions_2026.csv` in the repo root (v2.2 brain: dev 65.1 and 2025 back-test 63.0 on Fonecta's scorer, baseline 54.5 / 53.2) · final messages: [docs/MESSAGES.md](docs/MESSAGES.md) ·
+`predictions_2026.csv` in the repo root (v2.3 brain: dev 65.45 and 2025 back-test 63.50 on Fonecta's scorer, baseline 54.5 / 53.2) · final messages: [docs/MESSAGES.md](docs/MESSAGES.md) ·
 live source write-up: [docs/LIVE_SOURCES.md](docs/LIVE_SOURCES.md).
 
 ![How it works: Fonecta data, events and reviews go into one brain, the owner decides on WhatsApp or a call, Yext publishes](docs/img/architecture.png)
@@ -25,7 +25,7 @@ export FONECTA_KIT=/path/to/FONECTA_CONNECT_SUGGESTS_2026
 
 python3 $FONECTA_KIT/mock_api/server.py &                         # Yext mock on :8787
 .venv/bin/python brain/model.py                                   # ~1-2 min: v1 brain, per-row reasons for the app (outputs/)
-bash brain/train.sh                                               # optional, TIME: v2.2 brain -> predictions_2026.csv, prints the scores (65.1 / 63.0)
+bash brain/train.sh                                               # optional, ~25 min: v2.3 brain -> predictions_2026.csv, prints the scores (65.45 / 63.50)
 BRAIN_PREDICTIONS=$PWD/outputs/predictions_2026_explained.csv \
   .venv/bin/python -m uvicorn app.main:app --port 8800            # ops console: http://localhost:8800
 .venv/bin/python -m unittest discover app/tests                   # unit tests, no network
@@ -66,8 +66,10 @@ Settings come only from env vars: `YEXT_BASE_URL` (`https://sbx-api.yextapis.com
 | v2 brain, 2025 back-test out-of-fold | 62.3 | 0.84 | 0.69 | 361 |
 | v2.1 brain (calibrated), dev 2026 out-of-fold | 64.6 | 0.84 | 0.72 | 351 |
 | v2.1 brain (calibrated), 2025 back-test out-of-fold | 62.9 | 0.84 | 0.71 | 402 |
-| **v2.2 brain, dev 2026 out-of-fold** | **65.1** | 0.82 | 0.74 | 363 |
-| **v2.2 brain, 2025 back-test out-of-fold** | **63.0** | 0.84 | 0.71 | 386 |
+| v2.2 brain, dev 2026 out-of-fold | 65.1 | 0.82 | 0.74 | 363 |
+| v2.2 brain, 2025 back-test out-of-fold | 63.0 | 0.84 | 0.71 | 386 |
+| **v2.3 brain (5-model ensemble), dev 2026 out-of-fold** | **65.45** | 0.81 | 0.75 | 404 |
+| **v2.3 brain (5-model ensemble), 2025 back-test out-of-fold** | **63.50** | 0.83 | 0.73 | 453 |
 
 Protocol: 5-fold GroupKFold by business. Every scored row comes from a business the model didn't train on, in either
 season. The two decision thresholds for one season are picked on the other season's out-of-fold sweep, never on
@@ -105,6 +107,19 @@ also adds the owner's state on each holiday last season as separate features, be
 holidays (closed on Father's Day goes with closed on Boxing Day at 0.63). Same 3-model calibrated ensemble (h1cal,
 h1calc, v3hcal), thresholds closed 0.1, open -0.1 picked on the 2025 sweep.
 
+**v2.3 (T415)** (`brain/extra5.py`, `brain/final3.py`) adds **owner diligence**: how many of last season's (and
+the season before's) special days the owner entered at all, the same for the Christmas cluster, how many days ahead
+they entered, and how often they entered "regular hours". An owner who never enters exceptions leaves Google wrong,
+which is exactly the case we have to catch. The ensemble is now 5 calibrated models of different kinds: v2 with
+diligence (two candidate models), v2 with a LightGBM state model, v3 with the extra kit data (`brain/extra4.py`),
+and v3 on the v2.2 features. Thresholds closed 0, open -0.1 from the 2025 sweep. The combination was picked with a
+greedy search over saved out-of-fold predictions that looked at both seasons, so part of the +0.3 / +0.5 is search
+luck; seeds alone move a single model by about 0.2.
+
+Tried in T415 and not kept: weather (the kit stops at the 15 Nov forecast), listing status, events within 1 km,
+school breaks, category ids, a cleaner activity baseline that skips other holidays (all about ±0.1); class weights
+(64.8 / 62.9 single); random forest (63.5 / 59.3); separate thresholds for the Christmas cluster (no change).
+
 Tried and not kept: a low-confidence FLAG (+0.06, not worth confusing "flag" in the app); adding the 2025 season as
 training rows (worse in both seasons); bigger or slower trees without calibration.
 
@@ -112,10 +127,13 @@ Where the rest of the gap is: with perfect open/closed knowledge, the same pipel
 perfect hours-candidate choice it would score 69.5. So the open/closed state is the limit. About two thirds of the
 rows have no owner entry from last season, and the honest signals there (peers, activity, reviews) are weak.
 
-Reproduce the submitted predictions (v2.2): `FONECTA_KIT=… bash brain/train.sh` runs every step above in order (features,
-caches, the three calibrated models, the ensemble with both seasons' scores, then the final model on all businesses ->
-`predictions_2026.csv`). The ops app itself reads the v1 brain's per-row reasons (`brain/model.py` ->
-`outputs/predictions_2026_explained.csv`), because those carry the human-readable "why" shown to owners.
+Reproduce the submitted predictions (v2.3): `FONECTA_KIT=… bash brain/train.sh` runs every step in order (features,
+caches, three training sets, the five calibrated models out-of-fold, the ensemble with both seasons' scores written to
+`outputs/cv_dev_2026.csv` and `outputs/cv_backtest_2025.csv`, then the final model on all businesses ->
+`predictions_2026.csv`). The out-of-fold receipts are also committed in `receipts/`, so the scores can be checked with
+Fonecta's `evaluate.py` without retraining. The final step also writes `outputs/predictions_2026_explained.csv`
+(basis, probabilities and candidates per row), which the ops app turns into the human-readable "why" shown to owners;
+`brain/model.py` alone writes the same file from the simpler v1 brain.
 
 `predictions_2026.csv` in the repo root covers every target row. The dev number above is out-of-fold: it's scored only on businesses the model didn't train on.
 
@@ -179,6 +197,7 @@ Google keeps showing your current hours. Thanks for letting us know, we'll remem
 | Connect Suggests dataset | CC BY 4.0, "Connect Suggests simulator, Since AI ry 2026" |
 | FastAPI, Starlette, Uvicorn, Pydantic | MIT / BSD-3 |
 | pandas, NumPy, scikit-learn, PyArrow | BSD-3 / Apache-2.0 |
+| LightGBM (one of the five brain models) | MIT |
 | python-multipart, eval_type_backport | Apache-2.0 / MIT |
 | Pillow | MIT-CMU |
 | aiortc, PyAV (WhatsApp voice call) | BSD-3-Clause; PyAV wheels bundle FFmpeg under LGPL (not GPL) |
@@ -208,7 +227,7 @@ No GPL/AGPL components.
 - **Free-text owner replies** ("make it 9 to 13 on Christmas Eve", "close today, update everywhere"): Claude Haiku (Anthropic) turns the message into a structured request, with Gemini Flash-Lite (Google) as the fallback (`app/nlu.py`). The model only proposes; rules validate the output, and nothing is written to Yext without the owner's tap.
 - **Watched pages**: the same light model lists dated events from a page the owner asked us to watch. Page text is treated as data, and the output is validated (`app/watch.py`).
 - **Voice notes**: transcribed locally with Whisper (whisper.cpp on the same machine). The audio never goes to a cloud AI (`app/voice.py`).
-- **Not generative**: detection and suggestions (`brain/`) are a classic scikit-learn model trained on Fonecta's dataset, so every suggestion has a reason we can show.
+- **Not generative**: detection and suggestions (`brain/`) are classic gradient-boosted models (scikit-learn, LightGBM) trained on Fonecta's dataset, so every suggestion has a reason we can show.
 
 **Building it**
 - **Claude Code (Claude models, Anthropic)**: Zahar, Flovr's AI agent, wrote most of the code, tests, docs and copy during the event. Every result was checked by running it (unit tests, Fonecta's scorer, the real Yext sandbox and WhatsApp).

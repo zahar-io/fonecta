@@ -124,7 +124,7 @@ def main():
     mfull = fit(X.iloc[dev], y)
     csf = cand_stats(dev, meta, L)
     P = mfull.predict_proba(X)
-    out = os.path.join(ROOT, "outputs", "predictions_2026_v1.csv")  # the submitted root file is v2.2 (brain/train.sh)
+    out = os.path.join(ROOT, "outputs", "predictions_2026_v1.csv")  # the submitted root file is v2.3 (brain/train.sh)
     expl = os.path.join(ROOT, "outputs", "predictions_2026_explained.csv")
     with open(out, "w", newline="", encoding="utf-8") as g, open(expl, "w", newline="", encoding="utf-8") as g2:
         w, w2 = csv.writer(g), csv.writer(g2)

@@ -152,7 +152,7 @@ follow-ups: [docs/MESSAGES.md](docs/MESSAGES.md) (regenerated from the current c
 
 ```
 [Holiday hours check]
-Hi Aleksi 👋
+Hi Mikko 👋
 
 📅 *New Year's Day · Fri 1 Jan*
 🔴 Google shows: ~7:30–18~

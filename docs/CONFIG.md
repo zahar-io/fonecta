@@ -46,7 +46,7 @@ the app runs fully offline against the kit's Yext mock and every message is a pr
 ## Demo and timing
 | Variable | Default | What it does |
 |---|---|---|
-| `DEMO_FIRST` | the business's own contact | One first name for every business (`Mikko`) or per business (`FI-D0001=Mikko`) |
+| `DEMO_FIRST` | `FI-D0001=Mikko` (empty = the kit's own contact names) | One first name for every business (`Mikko`) or per business (`FI-D0001=Mikko`) |
 | `DEMO_LANG` | the business's language | Force the message language (`fi`, `sv`, `nb`, `en`) |
 | `DEMO_EXTRA` | `FI-00125` | Extra businesses added to the demo detection run |
 | `LIVE_EVENTS` | `1` | Helsinki LinkedEvents lookup (needs internet). `0` skips it |

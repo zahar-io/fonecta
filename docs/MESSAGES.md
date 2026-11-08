@@ -7,7 +7,7 @@ and three buttons. SMS and email carry the same words plus how to answer by text
 ### fi
 ```
 [Pyhäpäivien aukioloajat]
-Hei Aleksi 👋
+Hei Mikko 👋
 
 📅 *Uudenvuodenpäivä · pe 1.1.*
 🔴 Google näyttää: ~7.30–18~
@@ -22,7 +22,7 @@ Valitse alta 👇
 ### sv
 ```
 [Öppettider under helgerna]
-Hej Aleksi 👋
+Hej Mikko 👋
 
 📅 *Nyårsdagen · fre 1/1*
 🔴 Google visar: ~7.30–18~
@@ -37,7 +37,7 @@ Välj nedan 👇
 ### nb
 ```
 [Åpningstider i høytiden]
-Hei Aleksi 👋
+Hei Mikko 👋
 
 📅 *Første nyttårsdag · fre 1.1.*
 🔴 Google viser: ~7.30–18~
@@ -52,7 +52,7 @@ Velg nedenfor 👇
 ### en
 ```
 [Holiday hours check]
-Hi Aleksi 👋
+Hi Mikko 👋
 
 📅 *New Year's Day · Fri 1 Jan*
 🔴 Google shows: ~7:30–18~
@@ -67,7 +67,7 @@ Tap a button below 👇
 
 ## 2. The same suggestion by SMS / email (en)
 ```
-Hi Aleksi!
+Hi Mikko!
 
 New Year's Day is on Friday 1 Jan. Last year you were closed that day, but no special hours have been added this year, so Google now shows your regular hours (7:30–18).
 We suggest: Fri 1 Jan closed
@@ -113,7 +113,7 @@ Decline:
 
 Standing permission ("handle public holidays for me"): applied, then this, with an Undo button:
 ```
-Hi Aleksi! As you asked, we've added the holiday hours for Kahvila Aurora:
+Hi Mikko! As you asked, we've added the holiday hours for Kahvila Aurora:
 • New Year's Day, Fri 1 Jan: closed
 
 📍 Updating now. Usual update time: Google 2 min, Finder.fi 10 min, Fonecta Caller 1 h, Bing 1 day, Apple Maps 2 days.

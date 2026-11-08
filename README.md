@@ -7,7 +7,7 @@ owner in their own channel and language, and after one tap (no login) writes the
 Built during the event by Flovr (Alex, Vova and Zahar, Flovr's AI agent). All data is the synthetic Fonecta/Since AI
 dataset. No real customer data.
 
-**For judges:** demo video (2 min): *YouTube link added at submission* · pitch deck: [docs/Flovr_Fonecta_ConnectSuggests_deck.pdf](docs/Flovr_Fonecta_ConnectSuggests_deck.pdf) ·
+**For judges:** live demo: [demo.zahar.io](https://demo.zahar.io) (try it in the browser, no login) · demo video (2 min): on our sinceai.app entry · pitch deck: [docs/Flovr_Fonecta_ConnectSuggests_deck.pdf](docs/Flovr_Fonecta_ConnectSuggests_deck.pdf) ·
 `predictions_2026.csv` in the repo root (v2.3 brain: dev 65.45 and 2025 back-test 63.50 on Fonecta's scorer, baseline 54.5 / 53.2) · final messages: [docs/MESSAGES.md](docs/MESSAGES.md) ·
 live source write-up: [docs/LIVE_SOURCES.md](docs/LIVE_SOURCES.md).
 
@@ -71,7 +71,7 @@ Settings come only from env vars: `YEXT_BASE_URL` (`https://sbx-api.yextapis.com
 
 Protocol: 5-fold GroupKFold by business. Every scored row comes from a business the model didn't train on, in either
 season. The two decision thresholds for one season are picked on the other season's out-of-fold sweep, never on
-the season being scored. No test labels are used. Receipts are `outputs/cv_dev_2026.csv` and `outputs/cv_backtest_2025.csv`,
+the season being scored. No test labels are used. Receipts are committed as `receipts/cv_dev_2026.csv` and `receipts/cv_backtest_2025.csv`,
 scored with the kit's `evaluation/evaluate.py`.
 
 **v2 (T403)** adds:
@@ -231,7 +231,7 @@ No GPL/AGPL components.
 
 **Building it**
 - **Claude Code (Claude models, Anthropic)**: Zahar, Flovr's AI agent, wrote most of the code, tests, docs and copy during the event. Every result was checked by running it (unit tests, Fonecta's scorer, the real Yext sandbox and WhatsApp).
-- **Demo video**: AI-generated scenes (Kling and Seedance through Kie.ai) and a Gemini Live voice for the narration. All phone screens are real recordings of this app.
+- **Demo video**: AI-generated scenes with people (MiniMax Hailuo, Seedance and Kling video, Nano Banana Pro stills, all through Kie.ai) and a Gemini Live voice for the narration. All phone screens are real recordings of this app.
 
 ## Security and privacy
 

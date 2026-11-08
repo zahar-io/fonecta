@@ -892,6 +892,13 @@ def _edit_text(frm, text):
     if not st:
         return _free_text(frm, text)
     c, it = _edit_item(st)
+    ds, _ = chat_edit.parse_request(text, config.SNAPSHOT)
+    if ds and ds != [it["date"]]:
+        # The owner named another day ("also closed on 3 December"): that's a new request, not the answer to the
+        # open edit. Close the edit (the suggestion keeps its buttons) and handle the new day on its own.
+        _edit_state().pop(frm, None)
+        eng().save()
+        return _free_text(frm, text)
     h = chat_edit.parse_hours(text)
     if not h:
         m = chat_edit.not_understood(c["lang"])

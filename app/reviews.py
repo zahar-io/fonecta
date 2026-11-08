@@ -29,7 +29,8 @@ GOOD = {
 WORDS = {"fi": ("ja", "oli", "ei", "mutta", "hyvä", "kiitos", "todella"),
          "sv": ("och", "var", "inte", "men", "bra", "tack", "för"),
          "nb": ("og", "var", "ikke", "men", "bra", "takk", "for"),
-         "en": ("and", "was", "not", "but", "good", "thanks", "the")}
+         "en": ("and", "was", "not", "but", "good", "thanks", "the", "is", "it", "of", "with", "you",
+                "my", "very", "too", "said", "nobody", "sorry", "waited")}
 
 REPLY = {
     "fi": {"hi": "Kiitos palautteestanne!", "closed": "Pahoittelemme, että ovemme oli kiinni vaikka netissä luki toisin. "

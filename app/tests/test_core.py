@@ -323,3 +323,12 @@ class CallOwnerTwiceThenBackup(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LangOfTest(unittest.TestCase):
+    def test_english_with_for_is_not_norwegian(self):  # T428: "for" alone made this nb
+        from app.reviews import lang_of
+        self.assertEqual(lang_of("Waited 25 minutes for two coffees at lunch. Staff seemed overwhelmed, nobody said sorry."), "en")
+        self.assertEqual(lang_of("Takk for maten, det var veldig godt og hyggelig betjening"), "nb")
+        self.assertEqual(lang_of("Kahvi oli hyvää ja henkilökunta todella ystävällistä"), "fi")
+

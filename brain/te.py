@@ -1,8 +1,6 @@
 """Fold-safe label statistics. Built only from businesses in the training fold: their labels for the
 season and their dev truth history before that season's snapshot. Never from the business being scored."""
 import csv, os, collections
-from datetime import date
-import numpy as np
 from features import KIT, span
 SNAP = {2026: "2026-11-06", 2025: "2025-11-06"}
 

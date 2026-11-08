@@ -1,6 +1,6 @@
 """v3 = v2 + fold-safe label statistics (te.py) for the state model and as hours candidates/features."""
-import os,sys,pickle,json,numpy as np,pandas as pd,collections,time
-import harness as H, model as M, v2, te as TEm
+import os,pickle,json,numpy as np,pandas as pd,time
+import model as M, v2, te as TEm
 from sklearn.model_selection import GroupKFold
 from sklearn.ensemble import HistGradientBoostingClassifier as HC, HistGradientBoostingRegressor as HR
 SP=dict(**json.loads(os.environ.get("SPX",'{"max_iter":300,"learning_rate":0.06,"max_leaf_nodes":31}')),categorical_features="from_dtype",random_state=0)

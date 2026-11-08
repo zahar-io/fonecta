@@ -71,7 +71,7 @@ def _h(x):
     return "closed" if x == "closed" else x.replace("-", "–").replace(":00", "")
 
 
-CH = {"wa-call": "Call", "whatsapp": "WhatsApp", "whatsapp chat": "WhatsApp", "page": "Link", "whatsapp (shift alert)": "WhatsApp"}
+CH = {"wa-call": "Call", "whatsapp": "WhatsApp", "whatsapp chat": "WhatsApp", "console": "Console", "whatsapp (shift alert)": "WhatsApp"}
 
 
 def _plain(r):

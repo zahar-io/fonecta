@@ -1,8 +1,7 @@
-import os,sys,pickle,numpy as np,collections
+import os,sys,pickle
 import model as M
 from features import KIT
 sys.path.insert(0,KIT+'/evaluation'); import evaluate as E
-from sklearn.model_selection import GroupKFold
 LP={2026:os.path.join(KIT,'labels','dev_labels_2026.csv'),2025:os.path.join(KIT,'labels','dev_labels_2025_backtest.csv')}
 def load(s):
     X,meta=pickle.load(open(f'/tmp/fonecta_brain/X{s}.pkl','rb'))

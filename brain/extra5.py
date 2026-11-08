@@ -2,7 +2,7 @@
 they did NOT enter (what Google showed then vs what happened: inferred from activity is too weak, so we use entry
 coverage only). All from entries stamped before the snapshot."""
 from collections import defaultdict
-from datetime import date, datetime
+from datetime import date
 import numpy as np, pandas as pd
 from baseline import cycle
 XMAS = {"DEC23","XMAS_EVE","XMAS_DAY","BOXING_DAY","INTERDAY","NYE","NEW_YEARS_DAY","EPIPHANY_EVE","EPIPHANY"}

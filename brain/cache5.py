@@ -1,4 +1,4 @@
-import pickle,time,sys
+import pickle,time
 import model as M, extra4
 for s in (2025,2026):
     t=time.time(); b,X,meta=M.build(s)

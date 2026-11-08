@@ -1,7 +1,7 @@
 """Light AI for free-text owner requests ("open an hour later than usual on Friday").
 
-Claude Haiku via the team seat (claude -p; Gemini flash-lite as fallback) turns the message into
-{dates, hours} as JSON. Its answer is never trusted blindly: dates must be real and within a year, hours must pass
+Claude Haiku (through the Claude Code CLI during the event; the Anthropic API is a drop-in swap of `_ask_claude`),
+with Gemini Flash-Lite as fallback, turns the message into {dates, hours} as JSON. Its answer is never trusted blindly: dates must be real and within a year, hours must pass
 the same validator as everything else, and the owner still confirms with Save. If the model is off or unsure, the
 rule-based parser in chat_edit takes over. Only the message text, today's date and the business's regular hours are sent.
 """
@@ -30,7 +30,7 @@ def enabled() -> bool:
 
 
 def _ask_claude(prompt: str) -> str | None:
-    """Haiku through the team's Claude Code seat (claude -p): no API bill. Runs in /tmp with no tools."""
+    """Haiku via the `claude` CLI (CLAUDE_BIN). No tools, runs in /tmp, 25 s timeout."""
     import shutil
     import subprocess
     exe = os.environ.get("CLAUDE_BIN") or shutil.which("claude") or os.path.expanduser("~/.local/bin/claude")

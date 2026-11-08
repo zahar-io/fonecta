@@ -5,25 +5,39 @@ Run:  .venv/bin/python -m uvicorn app.main:app --port 8800
 """
 from __future__ import annotations
 
+import hashlib
+import hmac
 import html
-import re
 import json
 import os
+import re
+from contextlib import asynccontextmanager
+from datetime import date, datetime, timedelta
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 
-from . import channels, config, links, messages
-from .engine import Engine, NotAllowed
+from . import channels, config, kitdata, links, messages
+from .decision_log import router as log_router
+from .demo import router as demo_router
+from .engine import LOCK, Engine, NotAllowed
 from .hours import nice
+from .learning import now_iso
 
 app = FastAPI(title="Connect Suggests – Flovr")
 ENGINE: Engine | None = None
-from .demo import router as demo_router  # noqa: E402
 app.include_router(demo_router)
-from .decision_log import router as log_router  # noqa: E402
 app.include_router(log_router)
 PUBLIC_PREFIXES = ("/webhook/",)
+
+
+def _meta_signature_ok(raw: bytes, header: str | None) -> bool:
+    """Meta signs every webhook POST with the app secret (X-Hub-Signature-256). Enforced when WA_APP_SECRET is set."""
+    secret = os.environ.get("WA_APP_SECRET")
+    if not secret:
+        return True
+    want = "sha256=" + hmac.new(secret.encode(), raw, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(want, header or "")
 
 
 @app.middleware("http")
@@ -113,8 +127,7 @@ def review_block(e, eid: str) -> str:
     if not rc:
         return f"<div id=rev-{E(eid)} style='margin-top:6px'>{btn}</div>"
     msg = rc.get("message", "")
-    lk = ""
-    return (f"<div id=rev-{E(eid)} class=card style='background:#faf9fd'>{btn}{lk} <span class='tag'>{E(rc.get('status', ''))}</span>"
+    return (f"<div id=rev-{E(eid)} class=card style='background:#faf9fd'>{btn} <span class='tag'>{E(rc.get('status', ''))}</span>"
             f"<pre style='margin-top:6px'>{E(msg)}</pre><div class=muted>{E(rc.get('weekly', ''))}</div>"
             f"{'<div class=muted>' + E(rc.get('result', '')) + '</div>' if rc.get('result') else ''}</div>")
 
@@ -211,7 +224,7 @@ def api_cases():
     return JSONResponse(eng().cases())
 
 
-# ------------------------------------------------------------------ owner page (no login)
+# ------------------------------------------------------------------ signed button tokens (verified on every webhook tap)
 def load_link(link: str) -> tuple:
     try:
         body = links.verify(link)
@@ -225,26 +238,24 @@ def load_link(link: str) -> tuple:
 
 # ------------------------------------------------------------------ reviews: same loop, second use case
 def _reviews_for(eid):
-    import json as _j
     if not hasattr(_reviews_for, "all"):
         with open(os.path.join(config.KIT_DATA, "reviews.json"), encoding="utf-8") as f:
-            _reviews_for.all = _j.load(f)["response"]["reviews"]
+            _reviews_for.all = json.load(f)["response"]["reviews"]
     return sorted([r for r in _reviews_for.all if r["locationId"] == eid], key=lambda r: -r["publisherDate"])
 
 
 @app.post("/api/reviews/{eid}")
 def api_reviews(eid: str):
     """Newest unanswered bad review -> draft reply -> owner message; plus the weekly summary of all reviews."""
-    from datetime import datetime as _dt
     from . import reviews as rv
     e = eng()
     con = e.contact(eid)
     lang = messages.lang_of(con["preferred_language"])
-    name = (__import__("app.kitdata", fromlist=["entities"]).entities().get(eid) or {}).get("name", eid)
-    snap = _dt.combine(config.SNAPSHOT, _dt.min.time())
+    name = (kitdata.entities().get(eid) or {}).get("name", eid)
+    snap = datetime.combine(config.SNAPSHOT, datetime.min.time())
     rs = [r for r in _reviews_for(eid) if r["publisherDate"] < snap.timestamp() * 1000]  # only what Connect knew
     bad = next((r for r in rs if rv.is_bad(r) and (r.get("content") or "").strip() and not r.get("comments")), None)
-    out = {"entity_id": eid, "name": name, "lang": lang, "created_at": e.learning and __import__("app.learning", fromlist=["now_iso"]).now_iso()}
+    out = {"entity_id": eid, "name": name, "lang": lang, "created_at": now_iso()}
     if bad:
         d = rv.draft_reply(bad, name, lang)
         out.update(review=bad, draft=d, status="sent", message=rv.owner_message(bad, d, lang))
@@ -374,12 +385,11 @@ def _review_poll():
 
 
 def _in_window(win: str) -> bool:
-    from datetime import datetime as _dt
     try:
         from zoneinfo import ZoneInfo
-        h = _dt.now(ZoneInfo(config.TZ)).hour
+        h = datetime.now(ZoneInfo(config.TZ)).hour
     except Exception:
-        h = _dt.now().hour
+        h = datetime.now().hour
     a, b = (int(x) for x in win.split("-"))
     return a <= h < b
 
@@ -388,12 +398,11 @@ def _auto_calls():
     """Per business (its settings): no answer within call_after_min -> call the owner; still nothing call_after_min
     later -> call the owner a second time; still nothing backup_after_min after that -> the same suggestion is texted
     to the backup approver and the backup gets one call. Only inside the send window. Calls never decide."""
-    from datetime import datetime as _dt, timedelta as _td
     from . import settings as S
     if os.environ.get("AUTO_CALLS", "0") != "1":
         return
     e = eng()
-    now = _dt.fromisoformat(__import__("app.learning", fromlist=["now_iso"]).now_iso())
+    now = datetime.fromisoformat(now_iso())
     for c in e.cases():
         if c["status"] != "sent":
             continue
@@ -405,12 +414,12 @@ def _auto_calls():
             continue
         try:
             n = c.get("owner_calls", 1 if c.get("called") else 0)
-            if n == 0 and _dt.fromisoformat(min(sent)) < now - _td(minutes=st["call_after_min"]):
+            if n == 0 and datetime.fromisoformat(min(sent)) < now - timedelta(minutes=st["call_after_min"]):
                 e.urgent_call(c["id"], force=True)
-            elif 0 < n < e.OWNER_CALLS and _dt.fromisoformat(c["called"]) < now - _td(minutes=st["call_after_min"]):
+            elif 0 < n < e.OWNER_CALLS and datetime.fromisoformat(c["called"]) < now - timedelta(minutes=st["call_after_min"]):
                 e.urgent_call(c["id"], force=True)
             elif n >= e.OWNER_CALLS and not c.get("escalation") and \
-                    _dt.fromisoformat(c["called"]) < now - _td(minutes=st["backup_after_min"]):
+                    datetime.fromisoformat(c["called"]) < now - timedelta(minutes=st["backup_after_min"]):
                 r = e.escalate(c["id"], force=True)
                 chain = e.approvers(c["entity_id"])
                 if r.get("escalated") and chain:
@@ -440,15 +449,14 @@ def _watch_text(frm, text, c) -> bool:
 
 def watch_check(eid: str) -> list:
     """Read every watched page for this business; message the owner about new events (once each)."""
-    from datetime import datetime as _dt
     from zoneinfo import ZoneInfo
     from . import nlu, watch
     e = eng()
     w = e.state.get("watch", {}).get(eid)
     if not w:
         return []
-    today = _dt.now(ZoneInfo(config.TZ)).date()
-    ent = __import__("app.kitdata", fromlist=["entities"]).entities().get(eid, {})
+    today = datetime.now(ZoneInfo(config.TZ)).date()
+    ent = kitdata.entities().get(eid, {})
     sent = []
     for url in list(w["pages"]):
         try:
@@ -467,7 +475,7 @@ def watch_check(eid: str) -> list:
             sent.append(ev)
             if len(sent) >= 3:
                 break
-    w["checked"] = __import__("app.learning", fromlist=["now_iso"]).now_iso()
+    w["checked"] = now_iso()
     e.save()
     return sent
 
@@ -479,13 +487,11 @@ def api_watch_now(eid: str):
 
 def _watch_poll():
     """Every 6 hours, re-read the watched pages."""
-    from datetime import datetime as _dt, timedelta as _td
     e = eng()
     for eid, w in (e.state.get("watch") or {}).items():
         last = w.get("checked")
         try:
-            if last and _dt.fromisoformat(last) > _dt.fromisoformat(
-                    __import__("app.learning", fromlist=["now_iso"]).now_iso()) - _td(hours=6):
+            if last and datetime.fromisoformat(last) > datetime.fromisoformat(now_iso()) - timedelta(hours=6):
                 continue
             watch_check(eid)
         except Exception:
@@ -512,11 +518,15 @@ def _background():
     _watch_poll()
 
 
-@app.on_event("startup")
-def _start_monitor():
+@asynccontextmanager
+async def _lifespan(_app):
     if os.environ.get("REVIEW_MONITOR", "1") == "1":
         from .review_monitor import Monitor
         Monitor(_background, int(os.environ.get("REVIEW_POLL_S", "60"))).start()
+    yield
+
+
+app.router.lifespan_context = _lifespan
 
 
 # ------------------------------------------------------------------ WhatsApp webhook
@@ -530,7 +540,13 @@ def wa_verify(request: Request):
 
 @app.post("/webhook/whatsapp")
 async def wa_hook(request: Request):
-    payload = await request.json()
+    raw = await request.body()
+    if not _meta_signature_ok(raw, request.headers.get("X-Hub-Signature-256")):
+        raise HTTPException(403, "bad signature")
+    try:
+        payload = json.loads(raw or b"{}")
+    except ValueError:
+        raise HTTPException(400, "not JSON")
     try:
         from . import wa_call
         wa_call.on_webhook(payload)
@@ -551,9 +567,6 @@ async def wa_hook(request: Request):
         try:
             body, c = load_link(link)
         except HTTPException:
-            continue
-        if kind in ("rp", "rx", "rk"):
-            _review_button(frm, kind, link)
             continue
         if kind in ("a", "d"):
             act = "approve" if kind == "a" else "decline"
@@ -623,8 +636,12 @@ def _wa():
 
 
 def _log(c, kind, text, res):
-    c["outbox"].append({"at": __import__("app.learning", fromlist=["now_iso"]).now_iso(), "kind": kind,
-                        "channel": "whatsapp", "text": text, "result": res})
+    c["outbox"].append({"at": now_iso(), "kind": kind, "channel": "whatsapp", "text": text, "result": res})
+
+
+def _pop_pending(st: dict, frm: str):
+    """The demo phone may differ from the stored key; a single pending entry is taken."""
+    return st.pop(frm, None) or (st.pop(next(iter(st)), None) if len(st) == 1 else None)
 
 
 def _edit_ask(c, ds, frm):
@@ -640,15 +657,15 @@ def _edit_ask(c, ds, frm):
 
 
 def _owner_case(frm):
-    """The business this phone talks for: the latest case we messaged on WhatsApp."""
+    """Demo: WA_TO sends everything to one test phone, so any sender maps to the latest case we messaged on WhatsApp.
+    In production match `frm` against the case's `to_phone`."""
     cs = [c for c in eng().cases() if any(o.get("channel") == "whatsapp" for o in c.get("outbox", []))]
     return max(cs, key=lambda c: c["outbox"][-1]["at"]) if cs else None
 
 
 def _days_text(c, ds):
-    from datetime import date as _d
     lang = c["lang"]
-    return ", ".join(f"{messages.WD_SHORT[lang][_d.fromisoformat(d).weekday()]} {messages.dm(_d.fromisoformat(d), lang)}"
+    return ", ".join(f"{messages.WD_SHORT[lang][date.fromisoformat(d).weekday()]} {messages.dm(date.fromisoformat(d), lang)}"
                      for d in ds)
 
 
@@ -693,7 +710,7 @@ def _settings_button(frm, bid):
     if bid == "ss":
         S.apply(e.state, c["entity_id"], req["ch"])
         if req["ch"].get("auto_add"):  # newly pre-approved days that are already waiting get handled now
-            with __import__("app.engine", fromlist=["LOCK"]).LOCK:
+            with LOCK:
                 e._auto_apply(c, include_sent=True)
                 e._refresh(c)
         m = "Saved ✅\n\n" + S.render(S.get(e.state, c["entity_id"]), _monitored(c), _backup_label(c["entity_id"]))
@@ -757,7 +774,7 @@ def api_busy_day(eid: str):
     if not days:
         return JSONResponse({"busy": None})
     b = days[0]
-    ent = __import__("app.kitdata", fromlist=["entities"]).entities().get(eid, {})
+    ent = kitdata.entities().get(eid, {})
     c = next(iter(reversed(e.cases_for(eid))), None)
     lang = c["lang"] if c else messages.lang_of(os.environ.get("DEMO_LANG") or "en")
     first = config.demo_first(eid, (c or {}).get("first") or "there")
@@ -780,8 +797,7 @@ BUSY_ACK = {"bds": {"en": "Great, noted. Good luck with the crowd!", "fi": "Selv
 
 def _busy_button(frm, bid):
     e = eng()
-    st = e.state.setdefault("wa_busy", {})
-    req = st.pop(frm, None) or (st.pop(next(iter(st)), None) if len(st) == 1 else None)
+    req = _pop_pending(e.state.setdefault("wa_busy", {}), frm)
     if not req:
         return
     m = BUSY_ACK[bid].get(req["lang"], BUSY_ACK[bid]["en"])
@@ -814,12 +830,12 @@ def shift_check(eid: str, force: bool = False) -> dict:
     key = f"{eid}:{day.isoformat()}"
     if key in sent and not force:
         return {"gap": gap, "sent": False}
-    ent = __import__("app.kitdata", fromlist=["entities"]).entities().get(eid, {})
+    ent = kitdata.entities().get(eid, {})
     first = config.demo_first(eid, "there")
     to = os.environ.get("WA_TO", "")
     text = shifts.alert_text(first, ent.get("name", eid), day, gap)
     res = _wa().send_buttons(to, text, [("shc", "Close tomorrow morning"), ("shk", "I'll sort it")])
-    sent[key] = {"at": __import__("app.learning", fromlist=["now_iso"]).now_iso(), "gap": gap}
+    sent[key] = {"at": now_iso(), "gap": gap}
     e.state.setdefault("wa_shift", {})[channels.WhatsAppCloudChannel().recipient(to) if to else ""] = \
         {"eid": eid, "date": day.isoformat(), "gap": gap}
     e.learning.record({"entity_id": eid, "type": "shift alert", "date": day.isoformat(),
@@ -828,15 +844,9 @@ def shift_check(eid: str, force: bool = False) -> dict:
     return {"gap": gap, "sent": True, "result": res}
 
 
-def shifts_ampm(h):
-    from .shifts import _ampm
-    return _ampm(h)
-
-
 def _shift_button(frm, bid):
     e = eng()
-    st = e.state.setdefault("wa_shift", {})
-    req = st.pop(frm, None) or (st.pop(next(iter(st)), None) if len(st) == 1 else None)
+    req = _pop_pending(e.state.setdefault("wa_shift", {}), frm)
     if not req:
         return
     eid, d, gap = req["eid"], req["date"], req["gap"]
@@ -845,10 +855,10 @@ def _shift_button(frm, bid):
         e.learning.record({"entity_id": eid, "type": "decision", "date": d, "decision": "shift: owner will sort it",
                            "channel": "whatsapp"})
     else:
-        from datetime import date as _d
         from .hours import day_str
-        ent = __import__("app.kitdata", fromlist=["entities"]).entities().get(eid, {})
-        wd = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"][_d.fromisoformat(d).weekday()]
+        from .shifts import _ampm
+        ent = kitdata.entities().get(eid, {})
+        wd = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"][date.fromisoformat(d).weekday()]
         usual = day_str((ent.get("hours") or {}).get(wd))
         close_at = gap["end"]
         hours = f"{close_at}-{usual.split('-')[-1]}" if usual and usual != "closed" and "-" in usual else "closed"
@@ -857,7 +867,7 @@ def _shift_button(frm, bid):
         out = e.owner_request(eid, {d: hours}, channel="whatsapp (shift alert)")
         live = ", ".join(out.get("live") or []) if isinstance(out.get("live"), list) else str(out.get("live") or "")
         m = (("Done. Closed tomorrow on Google" if hours == "closed" else
-              f"Done. Tomorrow you open at {shifts_ampm(close_at)} instead")
+              f"Done. Tomorrow you open at {_ampm(close_at)} instead")
              + ", so nobody walks up to a locked door."
              + (f" Live on: {live}." if live else ""))
     _wa().send_text(frm, m)

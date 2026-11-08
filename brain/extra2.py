@@ -2,8 +2,8 @@
 candidates; per-holiday closed/open state from the owner's own entries last season (habits correlate across holidays)."""
 from collections import Counter, defaultdict
 from datetime import date, timedelta
-import numpy as np, pandas as pd
-import features  # noqa: F401
+import pandas as pd
+import features  # noqa: F401 (puts the kit on sys.path)
 from baseline import cycle
 KEYS = ["DEC23","XMAS_EVE","XMAS_DAY","BOXING_DAY","INTERDAY","NYE","NEW_YEARS_DAY","EPIPHANY_EVE","EPIPHANY",
         "INDEPENDENCE_DAY","ALL_SAINTS","BLACK_FRIDAY","FATHERS_DAY","GOOD_FRIDAY","EASTER_SUNDAY","MIDSUMMER_EVE",

@@ -10,7 +10,7 @@
 Everything uses data stamped before the snapshot (weather forecast rows are marked available at the snapshot)."""
 import csv, json, math
 from collections import defaultdict
-from datetime import date, timedelta
+from datetime import date
 import numpy as np, pandas as pd
 from features import D
 from baseline import cycle

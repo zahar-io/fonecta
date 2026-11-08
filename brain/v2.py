@@ -2,7 +2,7 @@
 is open and differs from shown). Decision = max expected scorer points. Everything OOF by business."""
 import os,sys,pickle,numpy as np,pandas as pd,collections
 import model as M
-from features import KIT, span, hm
+from features import KIT, span
 sys.path.insert(0,KIT+'/evaluation'); import evaluate as E
 from sklearn.model_selection import GroupKFold
 from sklearn.ensemble import HistGradientBoostingClassifier as HC, HistGradientBoostingRegressor as HR
@@ -113,7 +113,7 @@ def oof(D,extra=None):
     pos={i:j for j,i in enumerate(dev)}
     crow_j=np.array([pos[i] for i in D['crow']])
     for tr,te in GroupKFold(5).split(dev,y,g):
-        trE=set(g[tr]); teE=set(g[te])
+        trE=set(g[tr])
         Xtr=D['X'].iloc[[dev[j] for j in tr]]; ytr=y[tr]
         ctr=np.isin(crow_j,tr)&(y[crow_j]==2); Ztr=D['Z'][ctr]; ttr=D['tp'][ctr]
         if extra is not None:

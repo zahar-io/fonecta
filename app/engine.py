@@ -461,7 +461,7 @@ class Engine:
 
     # ---------------------------------------------------------------- 4 decide + 5 apply
     def decide(self, cid: str, decisions: dict, reason: str | None = None, permission: bool = False,
-               channel: str = "page") -> dict:
+               channel: str = "console") -> dict:
         """decisions: {date: {"action": approve|edit|decline, "hours": "..."}}. Unlisted open dates are left."""
         with LOCK:
             c = self.case(cid)
@@ -538,7 +538,7 @@ class Engine:
                               "channel": channel, "message": (c.get("message") or {}).get("text"),
                               "decision": decision, "final_hours": final, "decline_reason": reason})
 
-    def decide_all(self, cid: str, action: str, reason=None, permission=False, channel="page") -> dict:
+    def decide_all(self, cid: str, action: str, reason=None, permission=False, channel="console") -> dict:
         c = self.case(cid)
         decs = {i["date"]: {"action": action} for i in c["items"] if i["status"] in ("pending", "sent")
                 and i["action"] == "SUGGEST"}
@@ -557,7 +557,7 @@ class Engine:
             self.save()
 
     # ---------------------------------------------------------------- undo (auto-applied changes)
-    def undo(self, cid: str, channel="page") -> dict:
+    def undo(self, cid: str, channel="console") -> dict:
         with LOCK:
             c = self.case(cid)
             eid = c["entity_id"]

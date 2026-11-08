@@ -39,7 +39,7 @@ def extra(b, meta):
         q = g.loc[(g.index >= S - pd.Timedelta(days=427)) & (g.index < S - pd.Timedelta(days=307)), "act"].mean()
         coll[eid] = r / (q + 0.1) if q == q and r == r else np.nan
     # 2025 pilot decisions (sent before the snapshot): owner rejected / accepted the suggestion for that key last season
-    import csv as _csv, os as _os
+    import csv as _csv
     from features import D as _D
     pil = {}
     for r in _csv.DictReader(open(_D("data", "pilot_decision_log_2025.csv"), encoding="utf-8")):

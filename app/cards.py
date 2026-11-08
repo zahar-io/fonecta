@@ -7,7 +7,6 @@ from datetime import date
 from PIL import Image, ImageDraw, ImageFont
 
 from . import config, messages
-from .hours import nice
 
 BOLD = "/System/Library/Fonts/Supplemental/Arial Bold.ttf"
 REG = "/System/Library/Fonts/Supplemental/Arial.ttf"

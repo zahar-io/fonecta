@@ -13,7 +13,7 @@ if [ ! -x .venv/bin/python ]; then
   else python3 -m venv .venv && .venv/bin/pip install -q -r requirements.txt; fi
 fi
 .venv/bin/python -m unittest discover app/tests 2>&1 | tail -1
-python3 "$FONECTA_KIT/mock_api/server.py" --port "$MOCK_PORT" >/tmp/connect_mock.log 2>&1 &
+.venv/bin/python "$FONECTA_KIT/mock_api/server.py" --port "$MOCK_PORT" >/tmp/connect_mock.log 2>&1 &
 MOCK=$!; trap 'kill $MOCK 2>/dev/null' EXIT
 echo "Yext mock on :$MOCK_PORT. Console: http://localhost:$PORT  (presenter view /demo?eid=FI-D0001, decision log /log)"
 echo "In the console: 1 · Run detection, then 3 · Send and Simulate owner on any business."

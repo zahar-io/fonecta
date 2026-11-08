@@ -1,6 +1,7 @@
 # brain/: how the v2.3 predictions are built
 
 Run everything with `FONECTA_KIT=/path/to/FONECTA_CONNECT_SUGGESTS_2026 bash brain/train.sh` (about 25 min).
+train.sh sets every brain variable (THR_CLOSED, THR_OPEN, DPKL, XC, XD, CAL, TAG, SM, …); nothing needs setting by hand.
 The file names come from the build order; every file below is used by train.sh or imported by a file that is.
 
 | Step | Files | What it does |

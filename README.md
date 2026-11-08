@@ -17,7 +17,7 @@ live source write-up: [docs/LIVE_SOURCES.md](docs/LIVE_SOURCES.md).
 
 Needs Python 3.9–3.13 (3.12 recommended) and Fonecta's starter kit (`FONECTA_CONNECT_SUGGESTS_2026`: data, Yext mock, scorer).
 The kit is the folder from the challenge pack, not included here. Point `FONECTA_KIT` at it, or unpack it next to this repo
-(`../FONECTA_CONNECT_SUGGESTS_2026` is the default). Tested from a fresh clone on macOS on 8 Nov.
+(`../FONECTA_CONNECT_SUGGESTS_2026` is the default). Tested from a fresh clone on macOS with Python 3.12 on 8 Nov.
 No setup at all: try the live demo at [demo.zahar.io](https://demo.zahar.io).
 
 Quickest: `FONECTA_KIT=/path/to/FONECTA_CONNECT_SUGGESTS_2026 ./run.sh` sets up the venv, runs the tests, starts the Yext mock and
@@ -28,10 +28,10 @@ git clone https://github.com/zahar-io/fonecta.git && cd fonecta
 uv venv --python 3.12 .venv && VIRTUAL_ENV=.venv uv pip install -r requirements.txt   # or: python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt
 export FONECTA_KIT=/path/to/FONECTA_CONNECT_SUGGESTS_2026
 
-python3 $FONECTA_KIT/mock_api/server.py &                         # Yext mock on :8787
+.venv/bin/python $FONECTA_KIT/mock_api/server.py &                # Yext mock on :8787
 bash brain/train.sh                                               # optional, ~25 min: retrains the v2.3 brain, rewrites both predictions files, prints 65.45 / 63.50
 .venv/bin/python -m uvicorn app.main:app --port 8800              # ops console: http://localhost:8800 (reads the v2.3 brain's predictions_2026_explained.csv)
-.venv/bin/python -m unittest discover app/tests                   # unit tests, no network
+.venv/bin/python -m unittest discover app/tests                   # 31 unit tests, <1 s, no network (3 skip without the kit)
 ```
 
 In the console: **1 · Run detection**, then on any business **3 · Send** and **Simulate owner**. The decision is written to
@@ -39,9 +39,10 @@ the Yext mock and the confirmation appears in the case. `/demo?eid=FI-D0001` is 
 Without WhatsApp keys every message is a preview in the console (nothing leaves the machine); with them the same flow runs on
 a real phone (see [docs/WHATSAPP.md](docs/WHATSAPP.md)). Live events need internet (Helsinki LinkedEvents); set `LIVE_EVENTS=0` to skip them.
 
-Settings come only from env vars: `YEXT_BASE_URL` (`https://sbx-api.yextapis.com/v2` for the team sandbox), `YEXT_API_KEY`,
+Settings are env vars (plus two optional files under `app/`). The ones you need: `YEXT_BASE_URL` (`https://sbx-api.yextapis.com/v2` for the team sandbox), `YEXT_API_KEY`,
 `YEXT_ENTITY_MAP` (e.g. `FI-D0001=SinceAI15`, so a demo business writes to a real sandbox entity), `WA_PHONE_NUMBER_ID`,
-`WA_TOKEN`, `WA_VERIFY_TOKEN`, `APP_SECRET` (signs button tokens). Nothing secret is in this repo.
+`WA_TOKEN`, `WA_VERIFY_TOKEN`, `WA_APP_SECRET` (webhook POSTs must carry Meta's signature when set), `APP_SECRET` (signs button tokens).
+Every variable, with its default, is in [docs/CONFIG.md](docs/CONFIG.md). Nothing secret is in this repo.
 
 ## The five steps
 
@@ -195,9 +196,9 @@ No GPL/AGPL components.
 ## Generative AI: where and why
 
 **Inside the product**
-- **Free-text owner replies** ("make it 9 to 13 on Christmas Eve", "close today, update everywhere"): Claude Haiku (Anthropic) turns the message into a structured request, with Gemini Flash-Lite (Google) as the fallback (`app/nlu.py`). The model only proposes; rules validate the output, and nothing is written to Yext without the owner's tap.
+- **Free-text owner replies** ("make it 9 to 13 on Christmas Eve", "close today, update everywhere"): Claude Haiku (Anthropic; during the event through the Claude Code CLI, in production the Anthropic API) turns the message into a structured request, with Gemini Flash-Lite (Google) as the fallback (`app/nlu.py`). The model only proposes; rules validate the output, and nothing is written to Yext without the owner's tap.
 - **Watched pages**: the same light model lists dated events from a page the owner asked us to watch. Page text is treated as data, and the output is validated (`app/watch.py`).
-- **Voice notes**: transcribed locally with Whisper (whisper.cpp on the same machine). The audio never goes to a cloud AI (`app/voice.py`).
+- **Voice notes**: transcribed locally with Whisper (whisper.cpp on the same machine: `whisper-server -m ggml-base.bin --port 8179`; without it the owner is asked to type). The audio never goes to a cloud AI (`app/voice.py`).
 - **Not generative**: detection and suggestions (`brain/`) are classic gradient-boosted models (scikit-learn, LightGBM) trained on Fonecta's dataset, so every suggestion has a reason we can show.
 
 **Building it**
@@ -209,7 +210,7 @@ No GPL/AGPL components.
 - **Data**: only the synthetic Fonecta/Since AI dataset and public Helsinki LinkedEvents. No real customer data.
 - **Secrets**: keys (Yext sandbox, WhatsApp, Gemini) come from environment variables, kept in the machine's keychain. None are in this repo or its history, and they don't appear in the video or deck.
 - **Owner control**: `Engine._write` refuses any write without an owner decision, a standing permission or an undo (unit-tested). Every decision is logged with who, when and through which channel.
-- **Buttons carry signed, expiring tokens** (`app/links.py`), so a reply only acts on its own suggestion. There are no owner web pages; only the WhatsApp webhook is public, and the ops console needs a key when it's reachable from outside.
+- **Buttons carry signed, expiring tokens** (`app/links.py`), so a reply only acts on its own suggestion. There are no owner web pages; only the WhatsApp webhook is public (with `WA_APP_SECRET` set, every POST must carry Meta's signature), and the ops console needs a key when it's reachable from outside.
 - **Messaging**: WhatsApp only after the owner messages first or through an approved template. Calls need the owner's call permission, and opt-outs are respected.
 - **AI input**: owner messages and watched pages are treated as data, not instructions; model output is validated before use.
 

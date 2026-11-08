@@ -6,8 +6,11 @@ from __future__ import annotations
 
 import hashlib
 import html
+import ipaddress
 import json
 import re
+import socket
+import urllib.parse
 import urllib.request
 from datetime import date, timedelta
 
@@ -20,7 +23,18 @@ def wants_watch(text: str) -> str | None:
     return m.group(1).rstrip(".,)") if m else None
 
 
+def _public_host(url: str) -> bool:
+    """Only public addresses are fetched: an owner-supplied URL must not reach localhost or the private network."""
+    host = urllib.parse.urlparse(url).hostname or ""
+    try:
+        return all(ipaddress.ip_address(a[4][0]).is_global for a in socket.getaddrinfo(host, None))
+    except (socket.gaierror, ValueError):
+        return False
+
+
 def page_text(url: str, timeout: int = 20) -> str:
+    if not _public_host(url):
+        raise ValueError("private or unresolvable host")
     req = urllib.request.Request(url, headers={"User-Agent": UA})
     with urllib.request.urlopen(req, timeout=timeout) as r:
         raw = r.read(600_000).decode(r.headers.get_content_charset() or "utf-8", "replace")

@@ -310,6 +310,7 @@ class WeeklySummaryAllReviews(unittest.TestCase):
 class CallOwnerTwiceThenBackup(unittest.TestCase):
     def test_two_owner_calls_then_backup_call(self):
         os.environ["CALL_TRANSPORT"] = "preview"
+        self.addCleanup(os.environ.pop, "CALL_TRANSPORT", None)
         tmp = tempfile.mkdtemp()
         e = Engine(yext=FakeYext(), learning=Learning(os.path.join(tmp, "l.json")),
                    state_path=os.path.join(tmp, "s.json"), detect=FakeYext())
@@ -326,6 +327,36 @@ class CallOwnerTwiceThenBackup(unittest.TestCase):
         kinds = [o["kind"] for o in e.state["cases"]["c1"]["outbox"]]
         self.assertEqual(kinds, ["urgent call", "urgent call (second try)", "urgent call to Mikko (manager) (backup)"])
         self.assertIn("Mikko", e.state["cases"]["c1"]["outbox"][-1]["text"])
+
+
+class WebhookSignature(unittest.TestCase):
+    def test_meta_signature_checked_when_secret_set(self):
+        import asyncio
+        import hashlib
+        import hmac
+        from fastapi import HTTPException
+        from app import main
+        os.environ["WA_APP_SECRET"] = "meta-app-secret"
+        self.addCleanup(os.environ.pop, "WA_APP_SECRET", None)
+        os.environ["APP_VAR_DIR"] = tempfile.mkdtemp()
+        self.addCleanup(os.environ.pop, "APP_VAR_DIR", None)
+        raw = b'{"object": "whatsapp_business_account", "entry": []}'
+
+        class Req:
+            def __init__(self, sig):
+                self.headers = {"X-Hub-Signature-256": sig} if sig else {}
+
+            async def body(self):
+                return raw
+
+        with self.assertRaises(HTTPException) as cm:
+            asyncio.run(main.wa_hook(Req("sha256=" + "0" * 64)))
+        self.assertEqual(cm.exception.status_code, 403)
+        with self.assertRaises(HTTPException) as cm:
+            asyncio.run(main.wa_hook(Req(None)))
+        self.assertEqual(cm.exception.status_code, 403)
+        good = "sha256=" + hmac.new(b"meta-app-secret", raw, hashlib.sha256).hexdigest()
+        self.assertEqual(asyncio.run(main.wa_hook(Req(good))), {"ok": True})
 
 
 if __name__ == "__main__":

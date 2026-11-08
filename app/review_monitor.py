@@ -2,12 +2,8 @@
 ([Post] [Edit] [Skip], Edit in the chat), the rest go to the weekly summary. Nothing is posted without the owner."""
 from __future__ import annotations
 
-import re
 import threading
 import time
-from datetime import datetime
-
-from . import reviews as rv
 
 URGENT_WORDS = ("closed", "locked", "kiinni", "stängt", "stengt", "rude", "töykeä", "otrevlig", "uhøflig",
                 "food poisoning", "sick", "ill after", "dirty", "hair in", "ruokamyrkytys", "likainen", "matförgiftning",

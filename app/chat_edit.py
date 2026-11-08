@@ -99,7 +99,7 @@ _MON = r"(" + "|".join(sorted(MONTHS, key=len, reverse=True)) + r")[a-zä]*"
 
 def parse_request(text: str, today):
     """-> ([iso dates], hours) or (None, None). Understands '2nd December', 'Dec 2', '2.12.', '24-26 Dec'."""
-    from datetime import date as _d, timedelta
+    from datetime import date as _d
     t = (text or "").lower()
     dates = []
     m = re.search(r"(?<![\d:.\-–])" + _DAY + r"\s*(?:-|–)\s*" + _DAY + r"\s+(?:of\s+)?" + _MON, t)

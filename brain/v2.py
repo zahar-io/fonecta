@@ -68,6 +68,28 @@ def ystate(L,meta,i): return M.y_state(L[(meta[i]['entity_id'],meta[i]['date'])]
 import json as _j
 SP=dict(**_j.loads(os.environ.get("SPX",'{"max_iter":300,"learning_rate":0.06,"max_leaf_nodes":31}')),categorical_features="from_dtype",random_state=0)
 CP=dict(**_j.loads(os.environ.get("CPX",'{"max_iter":300,"learning_rate":0.06,"max_leaf_nodes":31}')),categorical_features="from_dtype",random_state=0)
+SEED=int(os.environ.get('SEED','0')); SP['random_state']=SEED; CP['random_state']=SEED
+def state_model():
+    sm=os.environ.get('SM','hgb')
+    if sm=='lgb':
+        import lightgbm as lgb
+        return lgb.LGBMClassifier(n_estimators=400,learning_rate=0.04,num_leaves=31,min_child_samples=30,subsample=0.8,subsample_freq=1,colsample_bytree=0.7,random_state=SEED,verbose=-1)
+    if sm=='rf':
+        from sklearn.ensemble import RandomForestClassifier
+        class RF(RandomForestClassifier):
+            def _enc(self,X):
+                X=X.copy()
+                for c in X.columns:
+                    if str(X[c].dtype)=='category': X[c]=X[c].cat.codes
+                return X.astype(float)
+            def fit(self,X,y,sample_weight=None): return super().fit(self._enc(X),y,sample_weight=sample_weight)
+            def predict_proba(self,X): return super().predict_proba(self._enc(X))
+        return RF(n_estimators=400,min_samples_leaf=10,max_features=0.3,n_jobs=4,random_state=SEED)
+    return HC(**SP)
+def sw(y):
+    cw=os.environ.get('CW')
+    if not cw: return None
+    w=[float(x) for x in cw.split(',')]; return np.array([w[k] for k in y])
 def prep(s):
     X,meta,L,dev=__import__('harness').load(s)
     C,keys=cand_table(X,meta,dev)
@@ -106,7 +128,7 @@ def oof(D,extra=None):
         for c in M.CAT: Xtr[c]=Xtr[c].astype(str).astype("category")
         Xte=D['X'].iloc[[dev[j] for j in te]].copy()
         for c in M.CAT: Xte[c]=pd.Categorical(Xte[c].astype(str),categories=Xtr[c].cat.categories)
-        sm=HC(**SP).fit(Xtr,ytr); P[te]=sm.predict_proba(Xte)
+        sm=state_model().fit(Xtr,ytr,sample_weight=sw(ytr)); P[te]=sm.predict_proba(Xte)
         if os.environ.get('CAL')=='1':
             P[te]=calibrate(Xtr,ytr,g_tr_all(D,tr,extra,trE),P[te])
         cte=np.isin(crow_j,te)
@@ -128,7 +150,7 @@ def calibrate(Xtr,ytr,gtr,Pte):
     from sklearn.linear_model import LogisticRegression
     inner=np.zeros((len(ytr),3))
     for a,b in GroupKFold(3).split(Xtr,ytr,gtr):
-        m=HC(**SP).fit(Xtr.iloc[a],ytr[a]); inner[b]=m.predict_proba(Xtr.iloc[b])
+        m=state_model().fit(Xtr.iloc[a],ytr[a],sample_weight=sw(ytr[a])); inner[b]=m.predict_proba(Xtr.iloc[b])
     lr=LogisticRegression(C=1.0,max_iter=1000).fit(calfeat(inner),ytr)
     return lr.predict_proba(calfeat(Pte))
 def decide2(p,m,cands,thr):
@@ -157,8 +179,8 @@ def sweep(D,P,byrow,season):
 if __name__=="__main__":
     import time;t=time.time()
     if os.environ.get('REPREP')=='1':
-        D6=prep(2026); D5=prep(2025); pickle.dump((D6,D5),open('/tmp/fonecta_brain/D.pkl','wb'))
-    else: D6,D5=pickle.load(open('/tmp/fonecta_brain/D.pkl','rb'))
+        D6=prep(2026); D5=prep(2025); pickle.dump((D6,D5),open(os.environ.get('DPKL','/tmp/fonecta_brain/D.pkl'),'wb'))
+    else: D6,D5=pickle.load(open(os.environ.get('DPKL','/tmp/fonecta_brain/D.pkl'),'rb'))
     for name,ex6,ex5 in [(("own season",None,None),("+other season",D5,D6))[int(os.environ.get("EXTRA","0"))]]:
         P6,b6=oof(D6,ex6); P5,b5=oof(D5,ex5)
         s6=sweep(D6,P6,b6,2026); s5=sweep(D5,P5,b5,2025)

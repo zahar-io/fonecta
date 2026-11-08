@@ -1,6 +1,6 @@
 import pickle,sys,os,numpy as np,collections
 import v2
-D6,D5=pickle.load(open('/tmp/fonecta_brain/D.pkl','rb'))
+D6,D5=pickle.load(open(os.environ.get('DPKL','/tmp/fonecta_brain/D.pkl'),'rb'))
 tags=sys.argv[1].split(',')
 FLAGQ=float(os.environ.get('FLAGQ','-1'))
 def load(tags):

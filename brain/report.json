@@ -1,20 +1,20 @@
 {
- "model": "v2.1 (T403): calibrated 3-model ensemble (h1cal, h1calc, v3hcal)",
+ "model": "v2.3 (T415): calibrated 5-model ensemble (dd_cal, dd_calc, lgb_cal, r4v3cal, v3hcal)",
  "thr": {
-  "closed": 0.1,
+  "closed": 0.0,
   "open": -0.1
  },
  "counts": {
-  "NO_ACTION:None": 23633,
-  "SUGGEST:STATE_MODEL": 11638,
+  "NO_ACTION:None": 22957,
+  "SUGGEST:STATE_MODEL": 12237,
+  "SUGGEST:LY2": 998,
+  "SUGGEST:PATTERN": 1209,
+  "SUGGEST:PEER_SPECIAL": 724,
+  "SUGGEST:LY1": 3121,
+  "SUGGEST:REV_CLOSE": 86,
+  "SUGGEST:PS1": 20,
   "SUGGEST:PS2": 31,
-  "SUGGEST:LY2": 993,
-  "SUGGEST:PATTERN": 1141,
-  "SUGGEST:PEER_SPECIAL": 717,
-  "SUGGEST:LY1": 3128,
-  "SUGGEST:REV_CLOSE": 87,
-  "SUGGEST:PS1": 17,
-  "SUGGEST:MALL": 209,
+  "SUGGEST:MALL": 211,
   "FLAG:CLOSED_SIGNALS": 161
  }
 }

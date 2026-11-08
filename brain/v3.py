@@ -50,7 +50,7 @@ def oof(D,season):
         print(' fold',k,round(time.time()-t),flush=True)
     return P,byrow
 if __name__=="__main__":
-    D6,D5=pickle.load(open('/tmp/fonecta_brain/D.pkl','rb'))
+    D6,D5=pickle.load(open(os.environ.get('DPKL','/tmp/fonecta_brain/D.pkl'),'rb'))
     P6,b6=oof(D6,2026); P5,b5=oof(D5,2025)
     s6=v2.sweep(D6,P6,b6,2026); s5=v2.sweep(D5,P5,b5,2025)
     r6=v2.evaluate(D6,P6,b6,{'closed':s5[0][1],'open':s5[0][2]},2026)

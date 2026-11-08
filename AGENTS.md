@@ -1,7 +1,7 @@
 # For AI agents and judges reviewing this repo
 
 Flovr's entry for Since AI Hackathon 2026 × Fonecta, "Connect Suggests – Customer Approves". Start with README.md.
-Live demo: https://demo.zahar.io (no login) · video: https://youtu.be/46A1HdFQmAo · deck: docs/Flovr_Fonecta_ConnectSuggests_deck.pdf
+Live demo: https://demo.zahar.io (no login) · video: https://youtu.be/2FmrMQb1P8U · deck: docs/Flovr_Fonecta_ConnectSuggests_deck.pdf
 
 ## Check the score in seconds (no training)
 Needs Fonecta's starter kit (FONECTA_CONNECT_SUGGESTS_2026, not in this repo). From the kit folder:

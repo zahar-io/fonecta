@@ -36,7 +36,14 @@ export FONECTA_KIT=/path/to/FONECTA_CONNECT_SUGGESTS_2026
 ```
 
 Optional, about 25 minutes: `bash brain/train.sh` retrains the v2.3 brain, rewrites both predictions files and prints 65.45 / 63.50.
-To check the committed scores in seconds instead, from the kit folder: `python evaluation/evaluate.py --predictions /path/to/fonecta/receipts/cv_dev_2026.csv`.
+To check the committed scores in seconds instead, run these from the kit folder (`cd $FONECTA_KIT`; `/path/to/fonecta` is this repo):
+
+```bash
+python3 evaluation/evaluate.py --predictions /path/to/fonecta/receipts/cv_dev_2026.csv                                                  # 65.45
+python3 evaluation/evaluate.py --predictions /path/to/fonecta/receipts/cv_backtest_2025.csv --labels labels/dev_labels_2025_backtest.csv  # 63.50
+```
+
+`run.sh` also takes the challenge pack as delivered (`FONECTA_KIT=/path/to/Fonecta_SinceAI2026.zip`, a zip inside a zip, and it unpacks both), and other ports with `PORT=8810 MOCK_PORT=8797`. In the console, Run detection takes about 25 s.
 
 In the console: **1 · Run detection**, then on any business **3 · Send** and **Simulate owner**. The decision is written to
 the Yext mock and the confirmation appears in the case. `/demo?eid=FI-D0001` is the presenter view and `/log` the decision log.

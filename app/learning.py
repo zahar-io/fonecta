@@ -235,7 +235,7 @@ class Learning:
     def reply_profile(self, eid: str, crm_window: str | None = None) -> dict:
         """When this owner actually answers: the 2-hour slot (Helsinki time) with most replies, and the median
         time from our message to their answer. Learned from every reply; the CRM window is only the prior."""
-        hours, lat, last_sent = [], [], None
+        hours, lat, last_sent, seen = [], [], None, set()
         for d in self.audit(eid):
             if d.get("type") == "sent":
                 last_sent = d["at"]
@@ -243,6 +243,11 @@ class Learning:
                 t = local_dt(d["at"])
                 if t is None:
                     continue
+                # one owner reply can decide several dates: count it once per minute, not once per date
+                key = (d.get("type"), t.replace(second=0, microsecond=0))
+                if key in seen:
+                    continue
+                seen.add(key)
                 hours.append(t.hour)
                 if last_sent and d.get("type") == "decision":
                     ls = local_dt(last_sent)

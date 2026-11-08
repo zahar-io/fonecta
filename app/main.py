@@ -152,7 +152,9 @@ def console():
                 f"<div class=card style='background:#fff4e5'><b>Starter kit not found</b> at {E(config.KIT)}. "
                 f"Run detection, Send and /demo need it: set FONECTA_KIT to the FONECTA_CONNECT_SUGGESTS_2026 folder "
                 f"and restart. No kit? Try the live demo: <a href='https://demo.zahar.io'>demo.zahar.io</a></div>")
-    top = kit_note + (f"<div class=card><form method=post action=/api/detect style='display:inline'><button class='btn p'>"
+    top = kit_note + (f"<div class=card><form method=post action=/api/detect style='display:inline' "
+           f"onsubmit=\"var b=this.querySelector('button');b.disabled=true;b.textContent='Running detection… about 25 s'\">"
+           f"<button class='btn p'>"
            f"1 · Run detection for the 17 demo businesses</button></form>"
            f"<form method=post action=/api/reset style='display:inline'><button class='btn g'>Reset demo</button></form>"
            f" <span class=muted>{E(wa)} · Yext: {E(config.yext_base())} · source: "

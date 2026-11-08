@@ -17,7 +17,7 @@ from datetime import date, datetime, timedelta
 import numpy as np
 import pandas as pd
 
-KIT = os.environ.get("FONECTA_KIT") or os.environ.get("KIT", "/Users/zahar/zahar-setup/tg-bot/work/T334/pack/Fonecta_SinceAI2026/inner/FONECTA_CONNECT_SUGGESTS_2026")
+KIT = os.environ.get("FONECTA_KIT") or os.environ.get("KIT", os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "..", "FONECTA_CONNECT_SUGGESTS_2026"))
 sys.path.insert(0, os.path.join(KIT, "examples"))
 from baseline import Baseline, day_str, cycle  # noqa: E402  (kit code, MIT)
 

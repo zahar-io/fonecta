@@ -16,7 +16,9 @@ live source write-up: [docs/LIVE_SOURCES.md](docs/LIVE_SOURCES.md).
 ## Run it
 
 Needs Python 3.9–3.13 (3.12 recommended) and Fonecta's starter kit (`FONECTA_CONNECT_SUGGESTS_2026`: data, Yext mock, scorer).
-Tested from a fresh clone on macOS on 8 Nov.
+The kit is the folder from the challenge pack, not included here. Point `FONECTA_KIT` at it, or unpack it next to this repo
+(`../FONECTA_CONNECT_SUGGESTS_2026` is the default). Tested from a fresh clone on macOS on 8 Nov.
+No setup at all: try the live demo at [demo.zahar.io](https://demo.zahar.io).
 
 ```bash
 git clone https://github.com/zahar-io/fonecta.git && cd fonecta
@@ -74,65 +76,28 @@ season. The two decision thresholds for one season are picked on the other seaso
 the season being scored. No test labels are used. Receipts are committed as `receipts/cv_dev_2026.csv` and `receipts/cv_backtest_2025.csv`,
 scored with the kit's `evaluation/evaluate.py`.
 
-**v2 (T403)** adds:
-- a candidate model that scores about 30 hours candidates per date (last year, mall, Google edits, peers, shifts of
-  the shown hours, mixes of these) by the scorer points it expects;
-- the decision takes the action with the highest expected points (+1 exact, -0.5 needless, -1 wrong state);
-- owner-level habit across all their special days, plus entries already made for this season;
-- last season's activity over the Christmas cluster against a stable autumn baseline, and an activity-collapse signal;
-- 2025 pilot decisions;
-- reviews that name the holiday ("closed on Epiphany", "closed already at 18 on NYE"), used both as a state signal
-  and as an hours candidate;
-- an average of 4 model configs, one of them also trained on the 2025 season.
-
-**v2.1 (T403 round 2)** adds:
-- **Calibration.** The open/closed model was overconfident: at a stated 0.85 it was right about 0.63 of the time. An
-  inner 3-fold by business, run inside each training fold, fits a logistic calibration layer. After it, the best
-  thresholds sit near the theoretical 0 (closed 0.1, open 0), so the expected-points decision means what it says.
-- **Poisson evidence from analytics** (`brain/an_llr.py`). On a day the shop was closed while Google said open,
-  customer actions fall to about 0.6x the usual weekday and phone calls don't fall. The old feature mixed the two. A
-  log-likelihood ratio over every past occurrence of the same day: AUC 0.755 vs 0.63 for closed against open, on
-  rows with no owner entry last year.
-- **Fold-safe label statistics** (`brain/te.py`, `brain/v3.py`). Built from training-fold businesses only (their labels
-  and their 2024-25 truth history): how this segment, in this country, on this day really changes its hours, used
-  as state features, as hours candidates and as candidate features. Training rows get the statistics from inner
-  folds, because leave-one-out leaked the label (first try: 60.9).
-- The ensemble is 3 calibrated models (g1cal, g1calc, v3cal).
-
-**v2.2 (T403 round 3)** (`brain/extra2.py`) adds the owner's own Sunday and Saturday regular hours and their most
-common open entry last season as hours candidates: on many holidays a business simply runs its weekend hours. It
-also adds the owner's state on each holiday last season as separate features, because habits correlate across
-holidays (closed on Father's Day goes with closed on Boxing Day at 0.63). Same 3-model calibrated ensemble (h1cal,
-h1calc, v3hcal), thresholds closed 0.1, open -0.1 picked on the 2025 sweep.
-
-**v2.3 (T415)** (`brain/extra5.py`, `brain/final3.py`) adds **owner diligence**: how many of last season's (and
-the season before's) special days the owner entered at all, the same for the Christmas cluster, how many days ahead
-they entered, and how often they entered "regular hours". An owner who never enters exceptions leaves Google wrong,
-which is exactly the case we have to catch. The ensemble is now 5 calibrated models of different kinds: v2 with
-diligence (two candidate models), v2 with a LightGBM state model, v3 with the extra kit data (`brain/extra4.py`),
-and v3 on the v2.2 features. Thresholds closed 0, open -0.1 from the 2025 sweep. The combination was picked with a
-greedy search over saved out-of-fold predictions that looked at both seasons, so part of the +0.3 / +0.5 is search
-luck; seeds alone move a single model by about 0.2.
-
-Tried in T415 and not kept: weather (the kit stops at the 15 Nov forecast), listing status, events within 1 km,
-school breaks, category ids, a cleaner activity baseline that skips other holidays (all about ±0.1); class weights
-(64.8 / 62.9 single); random forest (63.5 / 59.3); separate thresholds for the Christmas cluster (no change).
-
-Tried and not kept: a low-confidence FLAG (+0.06, not worth confusing "flag" in the app); adding the 2025 season as
-training rows (worse in both seasons); bigger or slower trees without calibration.
+**What the v2.3 brain does.** For every business × special day it scores about 30 hours candidates (last year,
+shopping-centre hours, Google user edits, peers, the owner's weekend hours, shifts and mixes of these) and an
+open/closed state, then takes the action with the highest expected scorer points (+1 exact, -0.5 needless, -1 wrong
+state). Signals: the owner's own past exceptions and habits across holidays, owner diligence (how often they enter
+exceptions at all), last season's activity and a Poisson closed-day test on analytics, reviews that name the holiday,
+fold-safe segment statistics, and 2025 pilot decisions. Five calibrated models of different kinds (gradient boosting
+and LightGBM) are averaged; thresholds come from the other season's sweep. The combination was picked with a greedy
+search that looked at both seasons, so part of the last +0.3 / +0.5 is search luck; seeds alone move a single model
+by about 0.2. How each version got here, and what we tried and dropped: [docs/MODEL_HISTORY.md](docs/MODEL_HISTORY.md).
 
 Where the rest of the gap is: with perfect open/closed knowledge, the same pipeline would score 90.6 on dev. With
 perfect hours-candidate choice it would score 69.5. So the open/closed state is the limit. About two thirds of the
 rows have no owner entry from last season, and the honest signals there (peers, activity, reviews) are weak.
 
 Reproduce the submitted predictions (v2.3): `FONECTA_KIT=… bash brain/train.sh` runs every step in order (features,
-caches, three training sets, the five calibrated models out-of-fold, the ensemble with both seasons' scores written to
+caches, three training sets, the five calibrated models out-of-fold (pipeline map: [brain/README.md](brain/README.md)), the ensemble with both seasons' scores written to
 `outputs/cv_dev_2026.csv` and `outputs/cv_backtest_2025.csv`, then the final model on all businesses ->
 `predictions_2026.csv`). The out-of-fold receipts are also committed in `receipts/`, so the scores can be checked with
 Fonecta's `evaluate.py` without retraining. The final step also writes
 `predictions_2026_explained.csv` (basis, probabilities and candidates for every row), which the ops app reads by default
-and turns into the "why" shown to owners. One brain everywhere: the scored file, the app and the demo all use v2.3 (the
-earlier versions are only rows in the table above; their code is gone).
+and turns into the "why" shown to owners. It's a generated file, committed so the app runs without the 25-minute retrain. One brain everywhere: the scored file, the app and the demo all use v2.3. Earlier versions are rows in the table
+above; only v2.3's code is kept, so only v2.3 is reproducible.
 
 `predictions_2026.csv` in the repo root covers every target row. The dev number above is out-of-fold: it's scored only on businesses the model didn't train on.
 

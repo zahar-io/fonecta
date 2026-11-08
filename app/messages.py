@@ -342,7 +342,7 @@ def bullet(item: dict, lang: str, event_name=None) -> str:
 
 
 def eta_text(sec: int, lang: str) -> str:
-    # no "~": WhatsApp reads ~a~ as strikethrough (T428, Alex)
+    # no "~": WhatsApp reads ~a~ as strikethrough
     u = T[lang]["eta"]
     if sec < 3600:
         return f"{max(1, sec // 60)} {u[0]}"

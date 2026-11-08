@@ -10,7 +10,7 @@ REPO_DIR = os.path.dirname(APP_DIR)
 
 KIT = os.environ.get(
     "FONECTA_KIT",
-    "/Users/zahar/zahar-setup/tg-bot/work/T334/pack/Fonecta_SinceAI2026/inner/FONECTA_CONNECT_SUGGESTS_2026",
+    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "..", "FONECTA_CONNECT_SUGGESTS_2026"),
 )
 KIT_DATA = os.path.join(KIT, "data")
 KIT_EXAMPLES = os.path.join(KIT, "examples")

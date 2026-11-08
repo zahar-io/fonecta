@@ -1,4 +1,4 @@
-"""Extra features (T403): owner-level habit across all special days, last season's activity on the whole
+"""Extra features: owner-level habit across all special days, last season's activity on the whole
 holiday cluster vs a stable autumn baseline, entries already made for this season, seasonal flags.
 All from data stamped before the snapshot."""
 from collections import defaultdict

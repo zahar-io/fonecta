@@ -1,4 +1,4 @@
-"""T415 v2.3 production run: the 5-model calibrated ensemble picked in T415 (brain/post.py):
+"""v2.3 production run: the 5-model calibrated ensemble picked by a greedy search over saved out-of-fold predictions:
   dd_cal  = v2 state model on round-3 data + owner diligence (extra5.py), candidate model B
   dd_calc = same state model, larger candidate model C
   r4v3cal = v3 (fold-safe label statistics) on round-3 data + round-4 kit data (extra4.py)
@@ -81,6 +81,6 @@ with open(out, "w", newline="", encoding="utf-8") as g, open(expl, "w", newline=
         n[(a, basis)] += 1
         if a != "NO_ACTION": w.writerow([m["entity_id"], m["date"], a, h, round(c, 3)])
         w2.writerow([m["entity_id"], m["date"], m["key"], a, h, round(c, 3), basis or "", m["shown"], *[round(float(x), 3) for x in P[i]], json.dumps(m["cands"], ensure_ascii=False)])
-json.dump({"model": "v2.3 (T415): calibrated 5-model ensemble (dd_cal, dd_calc, lgb_cal, r4v3cal, v3hcal)", "thr": thr,
+json.dump({"model": "v2.3: calibrated 5-model ensemble (dd_cal, dd_calc, lgb_cal, r4v3cal, v3hcal)", "thr": thr,
            "counts": {f"{k[0]}:{k[1]}": v for k, v in n.items()}}, open(os.path.join(M.HERE, "report.json"), "w"), indent=1)
 print(n.most_common()); print(out, round(time.time() - t))

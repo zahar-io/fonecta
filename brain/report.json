@@ -1,5 +1,5 @@
 {
- "model": "v2.3 (T415): calibrated 5-model ensemble (dd_cal, dd_calc, lgb_cal, r4v3cal, v3hcal)",
+ "model": "v2.3: calibrated 5-model ensemble (dd_cal, dd_calc, lgb_cal, r4v3cal, v3hcal)",
  "thr": {
   "closed": 0.0,
   "open": -0.1

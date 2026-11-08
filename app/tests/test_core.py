@@ -1,4 +1,5 @@
-"""Run: .venv/bin/python -m unittest discover app/tests   (no network, no mock server needed)"""
+"""Run: .venv/bin/python -m unittest discover app/tests   (no network, no mock server needed;
+the Learn and Shifts tests read the kit's data and skip when FONECTA_KIT isn't set up)"""
 import os
 import tempfile
 import unittest
@@ -9,6 +10,10 @@ from app import links, messages  # noqa: E402
 from app.engine import Engine, NotAllowed  # noqa: E402
 from app.hours import is_valid, merge_holiday_hours  # noqa: E402
 from app.learning import Learning  # noqa: E402
+from app.config import KIT_DATA  # noqa: E402
+
+HAS_KIT = os.path.isdir(KIT_DATA)
+NEEDS_KIT = unittest.skipUnless(HAS_KIT, "needs Fonecta's starter kit (set FONECTA_KIT)")
 
 SECRET = b"unit-test"
 
@@ -70,6 +75,7 @@ class Messages(unittest.TestCase):
             self.assertIn("Aino", m["text"])
 
 
+@NEEDS_KIT
 class Learn(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
@@ -172,6 +178,7 @@ class DecisionsAndBestTime(unittest.TestCase):
         self.assertIn("learned from 3 replies", rp["source"])
 
 
+@NEEDS_KIT
 class Shifts(unittest.TestCase):
     def test_gap_only_when_opening_shift_unclaimed(self):
         from datetime import date
@@ -326,7 +333,7 @@ if __name__ == "__main__":
 
 
 class LangOfTest(unittest.TestCase):
-    def test_english_with_for_is_not_norwegian(self):  # T428: "for" alone made this nb
+    def test_english_with_for_is_not_norwegian(self):  # "for" alone made this nb
         from app.reviews import lang_of
         self.assertEqual(lang_of("Waited 25 minutes for two coffees at lunch. Staff seemed overwhelmed, nobody said sorry."), "en")
         self.assertEqual(lang_of("Takk for maten, det var veldig godt og hyggelig betjening"), "nb")

@@ -1,4 +1,4 @@
-"""T403 round 3 (from agents A/B findings): owner's weekend regular hours and last season's open entries as hours
+"""owner's weekend regular hours and last season's open entries as hours
 candidates; per-holiday closed/open state from the owner's own entries last season (habits correlate across holidays)."""
 from collections import Counter, defaultdict
 from datetime import date, timedelta

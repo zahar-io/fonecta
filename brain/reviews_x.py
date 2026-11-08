@@ -1,4 +1,4 @@
-"""Holiday-specific review signals (T403): which special day a review names, and whether it says closed,
+"""Holiday-specific review signals: which special day a review names, and whether it says closed,
 open, or closed early at a given time. Only reviews published before the snapshot."""
 import re, json
 from collections import defaultdict

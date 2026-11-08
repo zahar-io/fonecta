@@ -1,4 +1,4 @@
-"""T415 owner diligence: does this owner enter exceptions at all, how early, and how did they behave on days
+"""Owner diligence: does this owner enter exceptions at all, how early, and how did they behave on days
 they did NOT enter (what Google showed then vs what happened: inferred from activity is too weak, so we use entry
 coverage only). All from entries stamped before the snapshot."""
 from collections import defaultdict

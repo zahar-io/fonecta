@@ -1,4 +1,4 @@
-"""T415 round 4: kit data not used before, plus a cleaner activity baseline.
+"""Kit data not used before, plus a cleaner activity baseline.
 - calendar: day_type / day_class / official holiday (coded)
 - entity: first category id, number of categories
 - listings: status mix and Google update speed

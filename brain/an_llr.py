@@ -1,4 +1,4 @@
-"""Poisson evidence from last seasons' analytics (T403): on a day the business was closed while the listing said
+"""Poisson evidence from last seasons' analytics: on a day the business was closed while the listing said
 open, customer actions drop to ~0.6x of the usual weekday; on different-hours days actions and profile views are
 ~1.15x. Log-likelihood ratios summed over every past occurrence of the same special day (before the snapshot)."""
 import numpy as np, pandas as pd

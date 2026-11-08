@@ -1,4 +1,4 @@
-"""Fold-safe label statistics (T403 v3). Built only from businesses in the training fold: their labels for the
+"""Fold-safe label statistics. Built only from businesses in the training fold: their labels for the
 season and their dev truth history before that season's snapshot. Never from the business being scored."""
 import csv, os, collections
 from datetime import date

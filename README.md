@@ -1,6 +1,8 @@
-# Flovr – Connect Suggests
+# No Locked Doors: holiday hours fixed with one WhatsApp tap
 
-Since AI Hackathon 2026 × Fonecta: "Connect Suggests – Customer Approves".
+Google shows the wrong holiday hours, customers find a locked door. We spot it first, ask the owner on WhatsApp, and one tap fixes it.
+Flovr's entry for Since AI Hackathon 2026 × Fonecta: "Connect Suggests – Customer Approves".
+
 Connect notices when a business's opening hours are about to be wrong, proposes the right hours with a reason, asks the
 owner in their own channel and language, and after one tap (no login) writes the change to Yext and tells the owner where it now shows.
 

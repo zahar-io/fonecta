@@ -1,4 +1,4 @@
-# Run Your Business, Not Your Listings: holiday hours in one WhatsApp tap
+# OneTap: run your business, not your listings (holiday hours in one WhatsApp tap)
 
 Google shows the wrong holiday hours, customers find a locked door. We spot it first, ask the owner on WhatsApp, and one tap fixes it.
 Flovr's entry for Since AI Hackathon 2026 × Fonecta: "Connect Suggests – Customer Approves".

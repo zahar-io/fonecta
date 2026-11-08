@@ -818,7 +818,7 @@ def shift_check(eid: str, force: bool = False) -> dict:
     first = config.demo_first(eid, "there")
     to = os.environ.get("WA_TO", "")
     text = shifts.alert_text(first, ent.get("name", eid), day, gap)
-    res = _wa().send_buttons(to, text, [("shc", "Close tomorrow AM"), ("shk", "I'll sort it")])
+    res = _wa().send_buttons(to, text, [("shc", "Close tomorrow morning"), ("shk", "I'll sort it")])
     sent[key] = {"at": __import__("app.learning", fromlist=["now_iso"]).now_iso(), "gap": gap}
     e.state.setdefault("wa_shift", {})[channels.WhatsAppCloudChannel().recipient(to) if to else ""] = \
         {"eid": eid, "date": day.isoformat(), "gap": gap}

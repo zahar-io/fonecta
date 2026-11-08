@@ -44,7 +44,7 @@ def parse_hours(text: str) -> str | None:
     return out if ivs and is_valid(out) else None
 
 
-Q = {"en": ("✏️ What hours will you be open on {day}, {wd} {dm}?\nReply like *9-17*, *10am-4pm*, *10-14, 17-22* or *closed*.",
+Q = {"en": ("✏️ What hours will you be open on {day}, {wd} {dm}?\nReply like *9-17*, *10-14, 17-22* or *closed*.",
             "👍 Got it: *{day}, {wd} {dm}: {h}*. Save it?", "Sorry, I didn't catch that. Try *9-17* or *closed*.",
             ("💾 Save", "↩️ Try again"), "OK, tell me the hours again for {day}."),
      "fi": ("Mihin aikaan olette auki {day}na, {wd} {dm}?\nVastaa esim. *9-17*, *10-14, 17-22* tai *kiinni*.",

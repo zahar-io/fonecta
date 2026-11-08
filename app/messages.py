@@ -79,7 +79,7 @@ T = {
         "sign": "– Fonecta Connect",
         "subject": "{name}: tarkistetaanko pyhien aukioloajat?",
         "done": "Valmista! Uudet aukioloajat on tallennettu:", "done_edit": "Valmista! Tallensimme antamanne ajat:",
-        "live_on": "Näkyvissä: {list}.", "kept": "{n} päivä(ä) jätettiin ennalleen.",
+        "live_on": "Päivittyy nyt. Tavallinen päivitysaika: {list}.", "kept": "{n} päivä(ä) jätettiin ennalleen.",
         "perm_on": "Jatkossa hoidamme pyhäpäivät puolestanne ja ilmoitamme vain jälkikäteen.",
         "declined": "Selvä, emme muuta mitään. Google näyttää edelleen nykyiset aukioloaikanne. Kiitos tiedosta, "
                     "muistamme tämän ensi kerralla!",
@@ -123,7 +123,7 @@ T = {
         "sign": "– Fonecta Connect",
         "subject": "{name}: ska vi uppdatera helgtiderna?",
         "done": "Klart! De nya tiderna är sparade:", "done_edit": "Klart! Vi har sparat tiderna ni angav:",
-        "live_on": "Syns på: {list}.", "kept": "{n} dag(ar) lämnades som vanligt.",
+        "live_on": "Uppdateras nu. Normal uppdateringstid: {list}.", "kept": "{n} dag(ar) lämnades som vanligt.",
         "perm_on": "Från och med nu sköter vi helgdagarna åt er och meddelar bara i efterhand.",
         "declined": "Okej, vi ändrar ingenting. Google fortsätter att visa era nuvarande tider. Tack för beskedet, "
                     "vi kommer ihåg det till nästa gång!",
@@ -167,7 +167,7 @@ T = {
         "sign": "– Fonecta Connect",
         "subject": "{name}: skal vi oppdatere åpningstidene i høytiden?",
         "done": "Ferdig! De nye åpningstidene er lagret:", "done_edit": "Ferdig! Vi har lagret tidene dere la inn:",
-        "live_on": "Synlig på: {list}.", "kept": "{n} dag(er) ble latt være som vanlig.",
+        "live_on": "Oppdateres nå. Vanlig oppdateringstid: {list}.", "kept": "{n} dag(er) ble latt være som vanlig.",
         "perm_on": "Fra nå av ordner vi helligdagene for dere og gir bare beskjed etterpå.",
         "declined": "Greit, vi endrer ingenting. Google viser fortsatt de nåværende tidene deres. Takk for "
                     "beskjed, vi husker det til neste gang!",
@@ -211,7 +211,7 @@ T = {
         "sign": "– Fonecta Connect",
         "subject": "{name}: shall we update your holiday hours?",
         "done": "Done! Your new hours are saved:", "done_edit": "Done! We saved the hours you set:",
-        "live_on": "Live on: {list}.", "kept": "{n} day(s) left as usual.",
+        "live_on": "Updating now. Usual update time: {list}.", "kept": "{n} day(s) left as usual.",
         "perm_on": "From now on we'll handle public holidays for you and just let you know.",
         "declined": "OK, we won't change anything. Google keeps showing your current hours. Thanks for letting "
                     "us know, we'll remember it next time!",
@@ -342,13 +342,14 @@ def bullet(item: dict, lang: str, event_name=None) -> str:
 
 
 def eta_text(sec: int, lang: str) -> str:
+    # no "~": WhatsApp reads ~a~ as strikethrough (T428, Alex)
     u = T[lang]["eta"]
     if sec < 3600:
-        return f"~{max(1, sec // 60)} {u[0]}"
+        return f"{max(1, sec // 60)} {u[0]}"
     if sec < 86400:
-        return f"~{sec // 3600} {u[1]}"
+        return f"{sec // 3600} {u[1]}"
     n = sec // 86400
-    return f"~{n} {u[2] if n == 1 else u[3]}"
+    return f"{n} {u[2] if n == 1 else u[3]}"
 
 
 def short_publisher(name: str) -> str:

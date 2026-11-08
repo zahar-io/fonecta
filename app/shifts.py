@@ -56,9 +56,9 @@ def alert_text(first: str, name: str, day: date, gap: dict) -> str:
 
 
 def _ampm(h: str) -> str:
+    """24-hour time, never am/pm (T428, Alex): '9:00' -> '09:00'."""
     hh, mm = (int(x) for x in h.split(":"))
-    s = "AM" if hh < 12 else "PM"
-    return f"{hh % 12 or 12}:{mm:02d} {s}" if mm else f"{hh % 12 or 12} {s}"
+    return f"{hh:02d}:{mm:02d}"
 
 
 def tomorrow() -> date:

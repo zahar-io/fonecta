@@ -148,7 +148,11 @@ def console():
     e = eng()
     cases = sorted(e.cases(), key=lambda c: -c.get("priority", 0))
     wa = "WhatsApp: connected" if channels.wa_configured() else "WhatsApp: not configured (previews only)"
-    top = (f"<div class=card><form method=post action=/api/detect style='display:inline'><button class='btn p'>"
+    kit_note = ("" if os.path.isdir(config.KIT_DATA) else
+                f"<div class=card style='background:#fff4e5'><b>Starter kit not found</b> at {E(config.KIT)}. "
+                f"Run detection, Send and /demo need it: set FONECTA_KIT to the FONECTA_CONNECT_SUGGESTS_2026 folder "
+                f"and restart. No kit? Try the live demo: <a href='https://demo.zahar.io'>demo.zahar.io</a></div>")
+    top = kit_note + (f"<div class=card><form method=post action=/api/detect style='display:inline'><button class='btn p'>"
            f"1 · Run detection for the 17 demo businesses</button></form>"
            f"<form method=post action=/api/reset style='display:inline'><button class='btn g'>Reset demo</button></form>"
            f" <span class=muted>{E(wa)} · Yext: {E(config.yext_base())} · source: "

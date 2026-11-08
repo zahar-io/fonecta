@@ -25,14 +25,16 @@ opens the console on :8800. Step by step:
 
 ```bash
 git clone https://github.com/zahar-io/fonecta.git && cd fonecta
-uv venv --python 3.12 .venv && VIRTUAL_ENV=.venv uv pip install -r requirements.txt   # or: python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt
+uv venv --python 3.12 .venv && VIRTUAL_ENV=.venv uv pip install -r requirements.txt   # no uv? python3 -m venv .venv && .venv/bin/pip install -r requirements.txt (stock macOS Python 3.9 works)
 export FONECTA_KIT=/path/to/FONECTA_CONNECT_SUGGESTS_2026
 
-.venv/bin/python $FONECTA_KIT/mock_api/server.py &                # Yext mock on :8787
-bash brain/train.sh                                               # optional, ~25 min: retrains the v2.3 brain, rewrites both predictions files, prints 65.45 / 63.50
-.venv/bin/python -m uvicorn app.main:app --port 8800              # ops console: http://localhost:8800 (reads the v2.3 brain's predictions_2026_explained.csv)
 .venv/bin/python -m unittest discover app/tests                   # 31 unit tests, <1 s, no network (3 skip without the kit)
+.venv/bin/python "${FONECTA_KIT:?set FONECTA_KIT first}/mock_api/server.py" &   # Yext mock on :8787
+.venv/bin/python -m uvicorn app.main:app --port 8800              # ops console: http://localhost:8800 (keeps running; reads the v2.3 brain's predictions_2026_explained.csv)
 ```
+
+Optional, about 25 minutes: `bash brain/train.sh` retrains the v2.3 brain, rewrites both predictions files and prints 65.45 / 63.50.
+To check the committed scores in seconds instead, from the kit folder: `python evaluation/evaluate.py --predictions /path/to/fonecta/receipts/cv_dev_2026.csv`.
 
 In the console: **1 · Run detection**, then on any business **3 · Send** and **Simulate owner**. The decision is written to
 the Yext mock and the confirmation appears in the case. `/demo?eid=FI-D0001` is the presenter view and `/log` the decision log.

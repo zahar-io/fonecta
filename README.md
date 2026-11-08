@@ -131,9 +131,10 @@ Reproduce the submitted predictions (v2.3): `FONECTA_KIT=… bash brain/train.sh
 caches, three training sets, the five calibrated models out-of-fold, the ensemble with both seasons' scores written to
 `outputs/cv_dev_2026.csv` and `outputs/cv_backtest_2025.csv`, then the final model on all businesses ->
 `predictions_2026.csv`). The out-of-fold receipts are also committed in `receipts/`, so the scores can be checked with
-Fonecta's `evaluate.py` without retraining. The final step also writes `outputs/predictions_2026_explained.csv`
-(basis, probabilities and candidates per row), which the ops app turns into the human-readable "why" shown to owners;
-`brain/model.py` alone writes the same file from the simpler v1 brain.
+Fonecta's `evaluate.py` without retraining. The final step also writes
+`outputs/predictions_2026_v23_explained.csv` (basis, probabilities and candidates per row). The ops app and the demo read
+the v1 brain's file instead (`brain/model.py` -> `outputs/predictions_2026_explained.csv`), so the messages in the demo and in
+[docs/MESSAGES.md](docs/MESSAGES.md) stay the same whether or not you retrain; point `BRAIN_PREDICTIONS` at the v2.3 file to try it.
 
 `predictions_2026.csv` in the repo root covers every target row. The dev number above is out-of-fold: it's scored only on businesses the model didn't train on.
 
@@ -181,8 +182,8 @@ Tap a button below 👇
 
 [ ✅ Approve ]  [ ✏️ Edit ]  [ ❌ No thanks ]
 ```
-After Approve: "✅ Done! Your new hours are saved: • Independence Day, Sun 6 Dec: closed · 📍 Live on: Google ~2 min,
-Finder.fi ~10 min, Fonecta Caller ~1 h, Bing ~1 day, Apple Maps ~2 days." After No thanks: "👍 OK, we won't change anything.
+After Approve: "✅ Done! Your new hours are saved: • Independence Day, Sun 6 Dec: closed · 📍 Updating now. Usual update time:
+Google 2 min, Finder.fi 10 min, Fonecta Caller 1 h, Bing 1 day, Apple Maps 2 days." After No thanks: "👍 OK, we won't change anything.
 Google keeps showing your current hours. Thanks for letting us know, we'll remember it next time!"
 
 ## Bonus: live source

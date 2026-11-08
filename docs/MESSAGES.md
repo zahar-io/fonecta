@@ -83,7 +83,7 @@ Approve:
 ✅ Done! Your new hours are saved:
 • Independence Day, Sun 6 Dec: closed
 
-📍 Live on: Google ~2 min, Finder.fi ~10 min, Fonecta Caller ~1 h, Bing ~1 day, Apple Maps ~2 days.
+📍 Updating now. Usual update time: Google 2 min, Finder.fi 10 min, Fonecta Caller 1 h, Bing 1 day, Apple Maps 2 days.
 
 👀 Your listing was seen 1,073 times on Google Search and Maps in the last 30 days. Correct holiday hours keep you in “open now” results.
 ```
@@ -91,7 +91,7 @@ Approve:
 Edit (in the chat, after tapping Edit):
 ```
 Connect: ✏️ What hours will you be open on Independence Day, Sun 6 Dec?
-Reply like *9-17*, *10am-4pm*, *10-14, 17-22* or *closed*.
+Reply like *9-17*, *10-14, 17-22* or *closed*.
 Owner:   8-14
 Connect: 👍 Got it: *Independence Day, Sun 6 Dec: 8–14*. Save it?   [ 💾 Save ]  [ ↩️ Try again ]
 ```
@@ -101,7 +101,7 @@ Saved after the edit:
 ✅ Done! We saved the hours you set:
 • Independence Day, Sun 6 Dec: 8–14
 
-📍 Live on: Google ~2 min, Finder.fi ~10 min, Fonecta Caller ~1 h, Bing ~1 day, Apple Maps ~2 days.
+📍 Updating now. Usual update time: Google 2 min, Finder.fi 10 min, Fonecta Caller 1 h, Bing 1 day, Apple Maps 2 days.
 
 👀 Your listing was seen 1,073 times on Google Search and Maps in the last 30 days. Correct holiday hours keep you in “open now” results.
 ```
@@ -116,7 +116,7 @@ Standing permission ("handle public holidays for me"): applied, then this, with 
 Hi Aleksi! As you asked, we've added the holiday hours for Kahvila Aurora:
 • Independence Day, Sun 6 Dec: closed
 
-📍 Live on: Google ~2 min, Finder.fi ~10 min, Fonecta Caller ~1 h, Bing ~1 day, Apple Maps ~2 days.
+📍 Updating now. Usual update time: Google 2 min, Finder.fi 10 min, Fonecta Caller 1 h, Bing 1 day, Apple Maps 2 days.
 Not right? Tap Undo below.
 – Fonecta Connect
 

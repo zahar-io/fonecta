@@ -100,6 +100,9 @@ and turns into the "why" shown to owners. It's a generated file, committed so th
 above; only v2.3's code is kept, so only v2.3 is reproducible.
 
 `predictions_2026.csv` in the repo root covers every target row. The dev number above is out-of-fold: it's scored only on businesses the model didn't train on.
+If you score `predictions_2026.csv` itself against the dev labels you get about 92.6: that file comes from the final model,
+which trained on those same businesses, so the number is in-sample and means nothing. The honest numbers are the
+out-of-fold receipts above (65.45 / 63.50); Fonecta's hidden test set is what counts.
 
 ## Data sources that mattered most
 

@@ -25,6 +25,17 @@ from .hours import nice
 from .learning import now_iso
 
 app = FastAPI(title="Connect Suggests – Flovr")
+
+
+@app.exception_handler(FileNotFoundError)
+async def _kit_missing(request: Request, exc: FileNotFoundError):
+    # Without Fonecta's starter kit, pages that read its data say so instead of a bare 500.
+    if config.KIT_DATA in str(exc.filename or ""):
+        msg = ("Fonecta's starter kit not found at " + html.escape(config.KIT) + ". Set FONECTA_KIT to the "
+               "FONECTA_CONNECT_SUGGESTS_2026 folder (or unpack it next to this repo) and restart. "
+               "No kit? Try the live demo: https://demo.zahar.io")
+        return HTMLResponse("<!doctype html><title>Starter kit needed</title><p>" + msg + "</p>", status_code=503)
+    raise exc
 ENGINE: Engine | None = None
 app.include_router(demo_router)
 app.include_router(log_router)

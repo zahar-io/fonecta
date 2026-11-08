@@ -20,6 +20,9 @@ The kit is the folder from the challenge pack, not included here. Point `FONECTA
 (`../FONECTA_CONNECT_SUGGESTS_2026` is the default). Tested from a fresh clone on macOS on 8 Nov.
 No setup at all: try the live demo at [demo.zahar.io](https://demo.zahar.io).
 
+Quickest: `FONECTA_KIT=/path/to/FONECTA_CONNECT_SUGGESTS_2026 ./run.sh` sets up the venv, runs the tests, starts the Yext mock and
+opens the console on :8800. Step by step:
+
 ```bash
 git clone https://github.com/zahar-io/fonecta.git && cd fonecta
 uv venv --python 3.12 .venv && VIRTUAL_ENV=.venv uv pip install -r requirements.txt   # or: python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt

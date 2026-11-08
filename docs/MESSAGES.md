@@ -2,18 +2,18 @@
 Synthetic businesses from the Fonecta dataset. WhatsApp is the live channel: each message has a header card
 and three buttons. SMS and email carry the same words plus how to answer by text. No links anywhere.
 
-## 1. One suggestion on WhatsApp, in all four languages (Kahvila Aurora, 2026-12-06)
+## 1. One suggestion on WhatsApp, in all four languages (Kahvila Aurora, 2027-01-01)
 
 ### fi
 ```
 [Pyhäpäivien aukioloajat]
 Hei Aleksi 👋
 
-📅 *Itsenäisyyspäivä · su 6.12.*
-🔴 Google näyttää: ~10–16~
+📅 *Uudenvuodenpäivä · pe 1.1.*
+🔴 Google näyttää: ~7.30–18~
 🟢 Ehdotamme: *kiinni*
 
-💡 *Miksi:* Kaltaisenne yritykset ovat tänä päivänä yleensä kiinni, mutta Google näyttää nyt tavalliset aukioloaikanne (10–16).
+💡 *Miksi:* Viime vuonna olitte kiinni.
 
 Valitse alta 👇
 
@@ -24,11 +24,11 @@ Valitse alta 👇
 [Öppettider under helgerna]
 Hej Aleksi 👋
 
-📅 *Självständighetsdagen · sön 6/12*
-🔴 Google visar: ~10–16~
+📅 *Nyårsdagen · fre 1/1*
+🔴 Google visar: ~7.30–18~
 🟢 Vi föreslår: *stängt*
 
-💡 *Varför:* Företag som ert brukar ha stängt den dagen, men Google visar nu era vanliga öppettider (10–16).
+💡 *Varför:* Förra året hade ni stängt.
 
 Välj nedan 👇
 
@@ -39,11 +39,11 @@ Välj nedan 👇
 [Åpningstider i høytiden]
 Hei Aleksi 👋
 
-📅 *Uavhengighetsdagen · søn 6.12.*
-🔴 Google viser: ~10–16~
+📅 *Første nyttårsdag · fre 1.1.*
+🔴 Google viser: ~7.30–18~
 🟢 Vi foreslår: *stengt*
 
-💡 *Hvorfor:* Bedrifter som deres har som regel stengt den dagen, men Google viser nå de vanlige åpningstidene deres (10–16).
+💡 *Hvorfor:* I fjor hadde dere stengt.
 
 Velg nedenfor 👇
 
@@ -54,11 +54,11 @@ Velg nedenfor 👇
 [Holiday hours check]
 Hi Aleksi 👋
 
-📅 *Independence Day · Sun 6 Dec*
-🔴 Google shows: ~10–16~
+📅 *New Year's Day · Fri 1 Jan*
+🔴 Google shows: ~7:30–18~
 🟢 We suggest: *closed*
 
-💡 *Why:* Businesses like yours are usually closed that day, but Google now shows your regular hours (10–16).
+💡 *Why:* Last year you were closed that day.
 
 Tap a button below 👇
 
@@ -69,8 +69,8 @@ Tap a button below 👇
 ```
 Hi Aleksi!
 
-Independence Day is on Sunday 6 Dec. Businesses like yours are usually closed that day, but Google now shows your regular hours (10–16).
-We suggest: Sun 6 Dec closed
+New Year's Day is on Friday 1 Jan. Last year you were closed that day, but no special hours have been added this year, so Google now shows your regular hours (7:30–18).
+We suggest: Fri 1 Jan closed
 
 Reply OK or 1 to approve, 2 or NO to decline, or write your hours (e.g. 9-13).
 – Fonecta Connect
@@ -81,7 +81,7 @@ Reply OK or 1 to approve, 2 or NO to decline, or write your hours (e.g. 9-13).
 Approve:
 ```
 ✅ Done! Your new hours are saved:
-• Independence Day, Sun 6 Dec: closed
+• New Year's Day, Fri 1 Jan: closed
 
 📍 Updating now. Usual update time: Google 2 min, Finder.fi 10 min, Fonecta Caller 1 h, Bing 1 day, Apple Maps 2 days.
 
@@ -90,16 +90,16 @@ Approve:
 
 Edit (in the chat, after tapping Edit):
 ```
-Connect: ✏️ What hours will you be open on Independence Day, Sun 6 Dec?
+Connect: ✏️ What hours will you be open on New Year's Day, Fri 1 Jan?
 Reply like *9-17*, *10-14, 17-22* or *closed*.
 Owner:   8-14
-Connect: 👍 Got it: *Independence Day, Sun 6 Dec: 8–14*. Save it?   [ 💾 Save ]  [ ↩️ Try again ]
+Connect: 👍 Got it: *New Year's Day, Fri 1 Jan: 8–14*. Save it?   [ 💾 Save ]  [ ↩️ Try again ]
 ```
 
 Saved after the edit:
 ```
 ✅ Done! We saved the hours you set:
-• Independence Day, Sun 6 Dec: 8–14
+• New Year's Day, Fri 1 Jan: 8–14
 
 📍 Updating now. Usual update time: Google 2 min, Finder.fi 10 min, Fonecta Caller 1 h, Bing 1 day, Apple Maps 2 days.
 
@@ -114,7 +114,7 @@ Decline:
 Standing permission ("handle public holidays for me"): applied, then this, with an Undo button:
 ```
 Hi Aleksi! As you asked, we've added the holiday hours for Kahvila Aurora:
-• Independence Day, Sun 6 Dec: closed
+• New Year's Day, Fri 1 Jan: closed
 
 📍 Updating now. Usual update time: Google 2 min, Finder.fi 10 min, Fonecta Caller 1 h, Bing 1 day, Apple Maps 2 days.
 Not right? Tap Undo below.
@@ -135,11 +135,11 @@ No exceptions and no past decisions, so every suggestion comes from similar busi
 [Holiday hours check]
 Hi Aino 👋
 
-📅 *Christmas Eve · Thu 24 Dec*
+📅 *Christmas Day · Fri 25 Dec*
 🔴 Google shows: ~8–17~
 🟢 We suggest: *closed*
 
-💡 *Why:* Businesses like yours are usually closed that day, but Google now shows your regular hours (8–17).
+💡 *Why:* 86% of similar businesses nearby are closed that day, and no special hours have been added for you.
 
 Tap a button below 👇
 
@@ -149,11 +149,11 @@ Tap a button below 👇
 [Holiday hours check]
 Hi Aino 👋
 
-📅 *Christmas Day · Fri 25 Dec*
-🔴 Google shows: ~8–17~
+📅 *Boxing Day · Sat 26 Dec*
+🔴 Google shows: ~10–16~
 🟢 We suggest: *closed*
 
-💡 *Why:* 86% of similar businesses nearby are closed that day, and no special hours have been added for you.
+💡 *Why:* 62% of similar businesses nearby are closed that day, and no special hours have been added for you.
 
 Tap a button below 👇
 

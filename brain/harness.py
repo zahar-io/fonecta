@@ -34,20 +34,3 @@ def add_rev_cands(X,meta):
                 m['cands']['rev_close']=f"{s[0]//60%24:02d}:{s[0]%60:02d}-{int(v)//60%24:02d}:00"
 def score(preds,s): 
     r=E.score(preds,LP[s]); return r
-def oof_run(s,fitf=M.fit,decide=M.decide,thr={'closed':0.2,'open':0.3}):
-    X,meta,L,dev=load(s)
-    y=np.array([M.y_state(L[(meta[i]['entity_id'],meta[i]['date'])],meta[i]['shown']) for i in dev])
-    g=[meta[i]['entity_id'] for i in dev]
-    oof=np.zeros((len(dev),3)); cs={}
-    for tr,te in GroupKFold(5).split(dev,y,g):
-        m=fitf(X.iloc[[dev[i] for i in tr]],y[tr]); oof[te]=m.predict_proba(X.iloc[[dev[i] for i in te]])
-        c=M.cand_stats([dev[i] for i in tr],meta,L)
-        for i in te: cs[i]=c
-    preds={}
-    for j,i in enumerate(dev):
-        a,h,c,_=decide(oof[j],meta[i],cs[j],thr)
-        if a!='NO_ACTION': preds[(meta[i]['entity_id'],meta[i]['date'])]=(a,E.norm(h),c)
-    return score(preds,s),oof,cs
-if __name__=='__main__':
-    for s in (2026,2025):
-        r,_,_=oof_run(s); print(s,r['score_0_100'],r['precision_exact'],r['recall_exact'],r['harmful_suggestions'],r['breakdown'])

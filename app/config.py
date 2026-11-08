@@ -52,8 +52,10 @@ def yext_key() -> str:
 
 
 def brain_predictions() -> str | None:
-    p = os.environ.get("BRAIN_PREDICTIONS")
-    return p if p and os.path.exists(p) else None
+    """The brain's per-row file. Default: predictions_2026_explained.csv in the repo root (v2.3, written by
+    brain/train.sh). BRAIN_PREDICTIONS overrides it; BRAIN_PREDICTIONS=none runs the kit baseline instead."""
+    p = os.environ.get("BRAIN_PREDICTIONS") or os.path.join(os.path.dirname(APP_DIR), "predictions_2026_explained.csv")
+    return p if p != "none" and os.path.exists(p) else None
 
 
 _SECRET: bytes | None = None

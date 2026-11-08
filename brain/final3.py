@@ -6,7 +6,7 @@
   lgb_cal = v2 with a LightGBM state model on round-3 data, candidate model B
 Probabilities are the mean of the 5; each hours candidate is averaged over the models that scored it (ens.py).
 Trained on every dev business; thresholds from the 2025 back-test out-of-fold sweep (THR_CLOSED, THR_OPEN).
-Writes predictions_2026.csv + outputs/predictions_2026_v23_explained.csv (the ops app keeps reading the v1 file from model.py)."""
+Writes predictions_2026.csv (scorer format) + predictions_2026_explained.csv (basis, probabilities, candidates: read by the app)."""
 import os, json, csv, pickle, collections, time
 import numpy as np, pandas as pd
 import harness as H, model as M, v2, v3, te as TEm
@@ -69,7 +69,7 @@ def basis_of(m, h):
     for k in PRI:
         if k in src: return k.upper()
     return "PATTERN"
-out = os.path.join(M.ROOT, "predictions_2026.csv"); expl = os.path.join(M.ROOT, "outputs", "predictions_2026_v23_explained.csv")
+out = os.path.join(M.ROOT, "predictions_2026.csv"); expl = os.path.join(M.ROOT, "predictions_2026_explained.csv")
 n = collections.Counter()
 with open(out, "w", newline="", encoding="utf-8") as g, open(expl, "w", newline="", encoding="utf-8") as g2:
     w, w2 = csv.writer(g), csv.writer(g2)

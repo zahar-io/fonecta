@@ -24,10 +24,8 @@ uv venv --python 3.12 .venv && VIRTUAL_ENV=.venv uv pip install -r requirements.
 export FONECTA_KIT=/path/to/FONECTA_CONNECT_SUGGESTS_2026
 
 python3 $FONECTA_KIT/mock_api/server.py &                         # Yext mock on :8787
-.venv/bin/python brain/model.py                                   # ~1-2 min: v1 brain, per-row reasons for the app (outputs/)
-bash brain/train.sh                                               # optional, ~25 min: v2.3 brain -> predictions_2026.csv, prints the scores (65.45 / 63.50)
-BRAIN_PREDICTIONS=$PWD/outputs/predictions_2026_explained.csv \
-  .venv/bin/python -m uvicorn app.main:app --port 8800            # ops console: http://localhost:8800
+bash brain/train.sh                                               # optional, ~25 min: retrains the v2.3 brain, rewrites both predictions files, prints 65.45 / 63.50
+.venv/bin/python -m uvicorn app.main:app --port 8800              # ops console: http://localhost:8800 (reads the v2.3 brain's predictions_2026_explained.csv)
 .venv/bin/python -m unittest discover app/tests                   # unit tests, no network
 ```
 
@@ -99,7 +97,7 @@ scored with the kit's `evaluation/evaluate.py`.
   and their 2024-25 truth history): how this segment, in this country, on this day really changes its hours, used
   as state features, as hours candidates and as candidate features. Training rows get the statistics from inner
   folds, because leave-one-out leaked the label (first try: 60.9).
-- The ensemble is 3 calibrated models (g1cal, g1calc, v3cal): `brain/final2.py`.
+- The ensemble is 3 calibrated models (g1cal, g1calc, v3cal).
 
 **v2.2 (T403 round 3)** (`brain/extra2.py`) adds the owner's own Sunday and Saturday regular hours and their most
 common open entry last season as hours candidates: on many holidays a business simply runs its weekend hours. It
@@ -132,9 +130,9 @@ caches, three training sets, the five calibrated models out-of-fold, the ensembl
 `outputs/cv_dev_2026.csv` and `outputs/cv_backtest_2025.csv`, then the final model on all businesses ->
 `predictions_2026.csv`). The out-of-fold receipts are also committed in `receipts/`, so the scores can be checked with
 Fonecta's `evaluate.py` without retraining. The final step also writes
-`outputs/predictions_2026_v23_explained.csv` (basis, probabilities and candidates per row). The ops app and the demo read
-the v1 brain's file instead (`brain/model.py` -> `outputs/predictions_2026_explained.csv`), so the messages in the demo and in
-[docs/MESSAGES.md](docs/MESSAGES.md) stay the same whether or not you retrain; point `BRAIN_PREDICTIONS` at the v2.3 file to try it.
+`predictions_2026_explained.csv` (basis, probabilities and candidates for every row), which the ops app reads by default
+and turns into the "why" shown to owners. One brain everywhere: the scored file, the app and the demo all use v2.3 (the
+earlier versions are only rows in the table above; their code is gone).
 
 `predictions_2026.csv` in the repo root covers every target row. The dev number above is out-of-fold: it's scored only on businesses the model didn't train on.
 
@@ -158,9 +156,10 @@ the v1 brain's file instead (`brain/model.py` -> `outputs/predictions_2026_expla
 
 `FI-D0017` Kahvila Kipinä (joined 12 Oct 2026, no exceptions, no past decisions). Every suggestion comes from similar
 businesses (segment, country, city size) and from last year's activity data, never from the owner's own history.
-Current output: Christmas Eve, Christmas Day, Boxing Day and New Year's Day, each "closed", confidence 0.78–0.99, one
-WhatsApp message per date with the reason ("86% of similar businesses nearby are closed that day"). Anything under 0.6
-confidence is sent as a question ("Are you open on…?") instead of a suggestion, and nothing is written without the owner's tap.
+Current output (v2.3 brain): Christmas Day, Boxing Day and New Year's Day, each "closed", confidence 0.67–0.87, one
+WhatsApp message per date with the reason ("86% of similar businesses nearby are closed that day"). Epiphany Eve (5 Jan)
+at 8–15 has confidence 0.50, so it's sent as a question ("Are you open on…?") instead of a suggestion. Anything under 0.6
+is a question, and nothing is written without the owner's tap.
 See section 4 of [docs/MESSAGES.md](docs/MESSAGES.md) for the exact messages.
 
 ## Final customer messages (as text)
@@ -172,17 +171,17 @@ follow-ups: [docs/MESSAGES.md](docs/MESSAGES.md) (regenerated from the current c
 [Holiday hours check]
 Hi Aleksi 👋
 
-📅 *Independence Day · Sun 6 Dec*
-🔴 Google shows: ~10–16~
+📅 *New Year's Day · Fri 1 Jan*
+🔴 Google shows: ~7:30–18~
 🟢 We suggest: *closed*
 
-💡 *Why:* Businesses like yours are usually closed that day, but Google now shows your regular hours (10–16).
+💡 *Why:* Last year you were closed that day.
 
 Tap a button below 👇
 
 [ ✅ Approve ]  [ ✏️ Edit ]  [ ❌ No thanks ]
 ```
-After Approve: "✅ Done! Your new hours are saved: • Independence Day, Sun 6 Dec: closed · 📍 Updating now. Usual update time:
+After Approve: "✅ Done! Your new hours are saved: • New Year's Day, Fri 1 Jan: closed · 📍 Updating now. Usual update time:
 Google 2 min, Finder.fi 10 min, Fonecta Caller 1 h, Bing 1 day, Apple Maps 2 days." After No thanks: "👍 OK, we won't change anything.
 Google keeps showing your current hours. Thanks for letting us know, we'll remember it next time!"
 

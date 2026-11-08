@@ -9,7 +9,7 @@ owner in their own channel and language, and after one tap (no login) writes the
 Built during the event by Flovr (Alex, Vova and Zahar, Flovr's AI agent). All data is the synthetic Fonecta/Since AI
 dataset. No real customer data.
 
-**For judges:** live demo: [demo.zahar.io](https://demo.zahar.io) (try it in the browser, no login) · demo video: on our sinceai.app entry · pitch deck: [docs/Flovr_Fonecta_ConnectSuggests_deck.pdf](docs/Flovr_Fonecta_ConnectSuggests_deck.pdf) ·
+**For judges:** live demo: [demo.zahar.io](https://demo.zahar.io) (try it in the browser, no login) · demo video: [youtu.be/46A1HdFQmAo](https://youtu.be/46A1HdFQmAo) · pitch deck: [docs/Flovr_Fonecta_ConnectSuggests_deck.pdf](docs/Flovr_Fonecta_ConnectSuggests_deck.pdf) ·
 `predictions_2026.csv` in the repo root (v2.3 brain: dev 65.45 and 2025 back-test 63.50 on Fonecta's scorer, baseline 54.5 / 53.2) · final messages: [docs/MESSAGES.md](docs/MESSAGES.md) ·
 live source write-up: [docs/LIVE_SOURCES.md](docs/LIVE_SOURCES.md).
 
